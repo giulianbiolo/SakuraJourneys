@@ -1,6 +1,8 @@
+import 'package:japan_travel/models/models.dart';
 import 'package:japan_travel/screens/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +14,12 @@ void main() async {
     systemNavigationBarColor: Color.fromARGB(255, 17, 17, 25),
     systemNavigationBarDividerColor: Color.fromARGB(255, 17, 17, 25),
   ));
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+        create: (context) => ListModel(),
+        child: const MyApp()
+    )
+  );
 }
 
 class MyApp extends StatelessWidget {

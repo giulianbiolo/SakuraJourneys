@@ -1,7 +1,19 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 class LocationModel {
   final double lat;
   final double lng;
   LocationModel(this.lat, this.lng);
+  static fromLatLngString(String latLng) {
+    final latLngList = latLng
+        .substring(1, latLng.length - 1)
+        .split(",")
+        .map((e) => e.trim())
+        .toList();
+    return LocationModel(
+        double.parse(latLngList[0]), double.parse(latLngList[1]));
+  }
 }
 
 class DataModel {
@@ -23,9 +35,64 @@ class DataModel {
   );
 }
 
+class ListModel extends ChangeNotifier implements ReassembleHandler {
+  final List<DataModel> _data = dataListDefault;
+  void addData(DataModel data) {
+    _data.add(data);
+    notifyListeners();
+  }
+
+  void removeData(DataModel data) {
+    _data.remove(data);
+    notifyListeners();
+  }
+
+  void updateData(DataModel data, int index) {
+    _data[index] = data;
+    notifyListeners();
+  }
+
+  void insertData(DataModel data, int index) {
+    _data.insert(index, data);
+    notifyListeners();
+  }
+
+  void notify() {
+    notifyListeners();
+  }
+
+  int length() {
+    return _data.length;
+  }
+
+  DataModel elem(int index) {
+    return _data[index];
+  }
+
+  bool contains(DataModel data) {
+    return _data.contains(data);
+  }
+
+  void sortData() {
+    _data.sort((a, b) {
+      if (a.alreadySeen && !b.alreadySeen) {
+        return 1;
+      }
+      if (!a.alreadySeen && b.alreadySeen) {
+        return -1;
+      }
+      return a.distance.compareTo(b.distance);
+    });
+    notifyListeners();
+  }
+
+  @override
+  void reassemble() { }
+}
+
 enum LocationStatus { unseen, seen }
 
-List<DataModel> dataList = [
+List<DataModel> dataListDefault = [
   /*
    * DataModel(
     * String title,            [Tokyo Sky Tree]

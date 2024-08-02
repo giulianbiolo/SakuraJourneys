@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/utils/add_form.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapping_page_scroll/snapping_page_scroll.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geo/geo.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,9 +24,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadSeenData().then((value) => orderDataOnCurrLocation());
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    loadSeenData(Provider.of<ListModel>(context, listen: false)).then((value) => orderDataOnCurrLocation(Provider.of<ListModel>(context, listen: false)));
   }
 
   @override
@@ -50,7 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   controller: _pageController,
                   children: [
-                    for (int i = 0; i < dataList.length; i++) carouselView(i),
+                    for (int i = 0; i < context.watch<ListModel>().length(); i++) carouselView(i),
+                    carouselView(-1),
                   ],
                 ))
           ],
@@ -63,12 +71,65 @@ class _HomeScreenState extends State<HomeScreen> {
     return AnimatedBuilder(
       animation: _pageController,
       builder: (context, child) {
-        if (index >= dataList.length) {
+        if (index >= context.watch<ListModel>().length()) {
           return const SizedBox.shrink();
         }
-        return carouselCard(dataList[index]);
+        if (index == -1) {
+          return addCard();
+        }
+        return carouselCard(context.watch<ListModel>().elem(index));
       },
     );
+  }
+
+  Widget addCard() {
+    return Column(children: <Widget>[
+      Expanded(
+          child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            // ? Open the new card form menu popup
+            showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return const AlertDialog(
+                    title: Text("Add a new location"),
+                    scrollable: true,
+                    content: Padding(
+                      padding: EdgeInsets.only(
+                          top: 8.0, left: 8.0, right: 8.0),
+                      child: AddForm(),
+                    ),
+                  );
+                });
+          },
+          child: Hero(
+            tag: "addCard",
+            child: Container(
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    color: const Color.fromARGB(255, 17, 17, 25),
+                    boxShadow: const [
+                      BoxShadow(
+                        offset: Offset(0, 0),
+                        blurRadius: 6,
+                        color: Colors.white30,
+                      )
+                    ]),
+                child: const SizedBox(
+                  width: 300,
+                  child: Icon(
+                    Icons.add,
+                    size: 100,
+                    color: Colors.white70,
+                  ),
+                )),
+          ),
+        ),
+      ))
+    ]);
   }
 
   Widget carouselCard(DataModel data) {
@@ -91,30 +152,55 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (currentStatus == LocationStatus.seen.index) {
                     prefs.setInt(data.title, LocationStatus.unseen.index);
                     data.alreadySeen = false;
-                    dataList.remove(data);
+                    Provider.of<ListModel>(context, listen: false).removeData(data);
+                    //context.watch<ListModel>().removeData(data);
+
                     // insert it in the correct position based on distance
-                    for (int i = 0; i < dataList.length; i++) {
-                      if (dataList[i].alreadySeen ||
-                          data.distance < dataList[i].distance) {
-                        dataList.insert(i, data);
+                    for (int i = 0; i < Provider.of<ListModel>(context, listen: false).length(); i++) {
+                      if (Provider.of<ListModel>(context, listen: false).elem(i).alreadySeen ||
+                          data.distance < Provider.of<ListModel>(context, listen: false).elem(i).distance) {
+                        Provider.of<ListModel>(context, listen: false).insertData(data, i);
                         break;
                       }
                     }
-                    if (!dataList.contains(data)) {
-                      dataList.add(data);
+                    if (!Provider.of<ListModel>(context, listen: false).contains(data)) {
+                      Provider.of<ListModel>(context, listen: false).addData(data);
                     }
                   } else {
                     prefs.setInt(data.title, LocationStatus.seen.index);
-                    dataList.remove(data);
+                    Provider.of<ListModel>(context, listen: false).removeData(data);
                     data.alreadySeen = true;
-                    dataList.add(data);
+                    Provider.of<ListModel>(context, listen: false).addData(data);
                   }
-                  rebuildAllChildren(context);
+                  Provider.of<ListModel>(context, listen: false).notify();
                 })
               },
               child: Hero(
                 tag: data.imageName,
                 child: CachedNetworkImage(
+                  errorWidget: (context, url, error) => Container(
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        color: Colors.white,
+                        image: DecorationImage(
+                            image: Image.network(
+                              "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/404page.jpg?raw=true",
+                              fit: BoxFit.cover,
+                            ).image,
+                            fit: BoxFit.cover,
+                            colorFilter: data.alreadySeen
+                                ? ColorFilter.mode(
+                                    Colors.black.withOpacity(0.6),
+                                    BlendMode.darken)
+                                : null),
+                        boxShadow: const [
+                          BoxShadow(
+                            offset: Offset(0, 0),
+                            blurRadius: 6,
+                            color: Colors.white30,
+                          )
+                        ]),
+                  ),
                   imageUrl: data.imageName,
                   imageBuilder: (context, imageProvider) => Container(
                     decoration: BoxDecoration(
@@ -138,7 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   placeholder: (context, url) =>
                       const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
             ),
@@ -258,51 +343,40 @@ Future<void> navigateTo(double lat, double lng) async {
   }
 }
 
-Future<void> loadSeenData() async {
+Future<void> loadSeenData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  for (int i = 0; i < dataList.length; i++) {
-    int status = prefs.getInt(dataList[i].title) ?? 0;
+  for (int i = 0; i < dataList.length(); i++) {
+    int status = prefs.getInt(dataList.elem(i).title) ?? 0;
     if (status == LocationStatus.seen.index) {
-      dataList[i].alreadySeen = true;
+      dataList.elem(i).alreadySeen = true;
     }
   }
 }
 
-Future<void> orderDataOnCurrLocation() async {
-  LocationPermission permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return;
+Future<void> orderDataOnCurrLocation(ListModel dataList) async {
+  try {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
     }
+  } catch (e) {
+    return;
   }
   Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high);
-  for (int i = 0; i < dataList.length; i++) {
+  for (int i = 0; i < dataList.length(); i++) {
     LatLng p1 = LatLng(position.latitude, position.longitude);
-    LatLng p2 = LatLng(dataList[i].location.lat, dataList[i].location.lng);
+    LatLng p2 =
+        LatLng(dataList.elem(i).location.lat, dataList.elem(i).location.lng);
     num distance = computeDistanceBetween(p1, p2, radius: 6371008.8);
-    dataList[i].distance = distance.toDouble();
+    DataModel data = dataList.elem(i);
+    data.distance = distance.toDouble();
+    dataList.updateData(data, i);
   }
   // ? Sort the array based on distance but also always put to the end of the list the already seen locations
-  // dataList.sort((a, b) => a.distance.compareTo(b.distance)); # this only sorts based on distance
-  dataList.sort((a, b) {
-    if (a.alreadySeen && !b.alreadySeen) {
-      return 1;
-    }
-    if (!a.alreadySeen && b.alreadySeen) {
-      return -1;
-    }
-    return a.distance.compareTo(b.distance);
-  });
-}
-
-void rebuildAllChildren(BuildContext context) {
-  void rebuild(Element el) {
-    el.markNeedsBuild();
-    el.visitChildren(rebuild);
-  }
-
-  (context as Element).visitChildren(rebuild);
+  dataList.sortData();
 }
