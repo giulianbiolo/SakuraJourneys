@@ -8,7 +8,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geo/geo.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -78,49 +77,47 @@ class _HomeScreenState extends State<HomeScreen> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(10.0),
-            child: Hero(
-              tag: data.imageName,
-              child: GestureDetector(
-                onDoubleTap: () {
-                  HapticFeedback.mediumImpact();
-                  navigateTo(data.location.lat, data.location.lng);
-                },
-                onLongPress: () => {
-                  // ? Here we set the card as a "already seen" location
-                  HapticFeedback.mediumImpact(),
-                  SharedPreferences.getInstance().then((prefs) {
-                    // we want a toggle behaviour
-                    int currentStatus = prefs.getInt(data.title) ?? 0;
-                    if (currentStatus == LocationStatus.seen.index) {
-                      prefs.setInt(data.title, LocationStatus.unseen.index);
-                      data.alreadySeen = false;
-                      dataList.remove(data);
-                      // insert it in the correct position based on distance
-                      for (int i = 0; i < dataList.length; i++) {
-                        if (dataList[i].alreadySeen ||
-                            data.distance < dataList[i].distance) {
-                          dataList.insert(i, data);
-                          break;
-                        }
+            child: GestureDetector(
+              onDoubleTap: () {
+                HapticFeedback.mediumImpact();
+                navigateTo(data.location.lat, data.location.lng);
+              },
+              onLongPress: () => {
+                // ? Here we set the card as a "already seen" location
+                HapticFeedback.mediumImpact(),
+                SharedPreferences.getInstance().then((prefs) {
+                  // we want a toggle behaviour
+                  int currentStatus = prefs.getInt(data.title) ?? 0;
+                  if (currentStatus == LocationStatus.seen.index) {
+                    prefs.setInt(data.title, LocationStatus.unseen.index);
+                    data.alreadySeen = false;
+                    dataList.remove(data);
+                    // insert it in the correct position based on distance
+                    for (int i = 0; i < dataList.length; i++) {
+                      if (dataList[i].alreadySeen ||
+                          data.distance < dataList[i].distance) {
+                        dataList.insert(i, data);
+                        break;
                       }
-                      if (!dataList.contains(data)) {
-                        dataList.add(data);
-                      }
-                    } else {
-                      prefs.setInt(data.title, LocationStatus.seen.index);
-                      dataList.remove(data);
-                      data.alreadySeen = true;
+                    }
+                    if (!dataList.contains(data)) {
                       dataList.add(data);
                     }
-                    rebuildAllChildren(context);
-                  })
-                },
-                //child: Container(
-
-                  child: CachedNetworkImage(
-                    imageUrl: data.imageName,
-                    imageBuilder: (context, imageProvider) => Container(
-                      decoration: BoxDecoration(
+                  } else {
+                    prefs.setInt(data.title, LocationStatus.seen.index);
+                    dataList.remove(data);
+                    data.alreadySeen = true;
+                    dataList.add(data);
+                  }
+                  rebuildAllChildren(context);
+                })
+              },
+              child: Hero(
+                tag: data.imageName,
+                child: CachedNetworkImage(
+                  imageUrl: data.imageName,
+                  imageBuilder: (context, imageProvider) => Container(
+                    decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(30),
                         color: Colors.white,
                         image: DecorationImage(
@@ -130,44 +127,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? ColorFilter.mode(
                                     Colors.black.withOpacity(0.6),
                                     BlendMode.darken)
-                                : null
-                        ),
+                                : null),
                         boxShadow: const [
                           BoxShadow(
                             offset: Offset(0, 0),
                             blurRadius: 6,
                             color: Colors.white30,
                           )
-                        ]
-                      ),
-                    ),
-                    placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, url, error) => const Icon(Icons.error),
+                        ]),
                   ),
-
-                  /*
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      image: DecorationImage(
-                        image: Image.network(data.imageName).image,
-                        fit: BoxFit.cover,
-                        colorFilter: data.alreadySeen
-                            ? ColorFilter.mode(
-                                Colors.black.withOpacity(0.6), BlendMode.darken)
-                            : null,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          offset: Offset(0, 0),
-                          blurRadius: 6,
-                          color: Colors.white30,
-                        )
-                      ]
-                  ),
-                  */
-
-                //),
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
               ),
             ),
           ),

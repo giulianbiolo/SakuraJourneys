@@ -7,6 +7,11 @@ void main() async {
   await SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp],
   );
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Color.fromARGB(255, 17, 17, 25),
+    systemNavigationBarDividerColor: Color.fromARGB(255, 17, 17, 25),
+  ));
   runApp(const MyApp());
 }
 
