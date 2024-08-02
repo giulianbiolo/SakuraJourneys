@@ -24,14 +24,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    loadData(Provider.of<ListModel>(context, listen: false)).then((value) =>
+        orderDataOnCurrLocation(
+            Provider.of<ListModel>(context, listen: false)));
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    loadSeenData(Provider.of<ListModel>(context, listen: false)).then((value) => orderDataOnCurrLocation(Provider.of<ListModel>(context, listen: false)));
   }
 
   @override
@@ -57,7 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   controller: _pageController,
                   children: [
-                    for (int i = 0; i < context.watch<ListModel>().length(); i++) carouselView(i),
+                    for (int i = 0;
+                        i < context.watch<ListModel>().length();
+                        i++)
+                      carouselView(i),
                     carouselView(-1),
                   ],
                 ))
@@ -98,8 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: Text("Add a new location"),
                     scrollable: true,
                     content: Padding(
-                      padding: EdgeInsets.only(
-                          top: 8.0, left: 8.0, right: 8.0),
+                      padding: EdgeInsets.only(top: 8.0, left: 8.0, right: 8.0),
                       child: AddForm(),
                     ),
                   );
@@ -152,26 +151,46 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (currentStatus == LocationStatus.seen.index) {
                     prefs.setInt(data.title, LocationStatus.unseen.index);
                     data.alreadySeen = false;
-                    Provider.of<ListModel>(context, listen: false).removeData(data);
+                    Provider.of<ListModel>(context, listen: false)
+                        .removeData(data);
                     //context.watch<ListModel>().removeData(data);
 
                     // insert it in the correct position based on distance
-                    for (int i = 0; i < Provider.of<ListModel>(context, listen: false).length(); i++) {
-                      if (Provider.of<ListModel>(context, listen: false).elem(i).alreadySeen ||
-                          data.distance < Provider.of<ListModel>(context, listen: false).elem(i).distance) {
-                        Provider.of<ListModel>(context, listen: false).insertData(data, i);
+                    for (int i = 0;
+                        i <
+                            Provider.of<ListModel>(context, listen: false)
+                                .length();
+                        i++) {
+                      if (Provider.of<ListModel>(context, listen: false)
+                              .elem(i)
+                              .alreadySeen ||
+                          data.distance <
+                              Provider.of<ListModel>(context, listen: false)
+                                  .elem(i)
+                                  .distance) {
+                        Provider.of<ListModel>(context, listen: false)
+                            .insertData(data, i);
                         break;
                       }
                     }
-                    if (!Provider.of<ListModel>(context, listen: false).contains(data)) {
-                      Provider.of<ListModel>(context, listen: false).addData(data);
+                    if (!Provider.of<ListModel>(context, listen: false)
+                        .contains(data)) {
+                      Provider.of<ListModel>(context, listen: false)
+                          .addData(data);
                     }
                   } else {
                     prefs.setInt(data.title, LocationStatus.seen.index);
-                    Provider.of<ListModel>(context, listen: false).removeData(data);
+                    Provider.of<ListModel>(context, listen: false)
+                        .removeData(data);
                     data.alreadySeen = true;
-                    Provider.of<ListModel>(context, listen: false).addData(data);
+                    Provider.of<ListModel>(context, listen: false)
+                        .addData(data);
                   }
+                  // ? Save data to SharedPreferences
+                  prefs.setString(
+                      "dataList",
+                      Provider.of<ListModel>(context, listen: false)
+                          .toString());
                   Provider.of<ListModel>(context, listen: false).notify();
                 })
               },
@@ -233,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // ******* Rating Indicator *******
           padding: const EdgeInsets.only(left: 25.0, right: 25.0),
           child: LinearProgressIndicator(
-            value: data.rating / 300,
+            value: data.rating / 5.0,
             backgroundColor: data.alreadySeen
                 ? const Color.fromARGB(40, 195, 191, 255)
                 : const Color.fromARGB(77, 195, 191, 255),
@@ -343,14 +362,12 @@ Future<void> navigateTo(double lat, double lng) async {
   }
 }
 
-Future<void> loadSeenData(ListModel dataList) async {
+Future<void> loadData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  for (int i = 0; i < dataList.length(); i++) {
-    int status = prefs.getInt(dataList.elem(i).title) ?? 0;
-    if (status == LocationStatus.seen.index) {
-      dataList.elem(i).alreadySeen = true;
-    }
-  }
+  String dataString = (prefs.getString("dataList") ?? "").trim().replaceAll("\n", "").replaceAll("[", "").replaceAll("]", "");
+  print("Now loading the following string:\n$dataString");
+  List<DataModel> savedList = dataFromString(dataString);
+  dataList.loadData(savedList);
 }
 
 Future<void> orderDataOnCurrLocation(ListModel dataList) async {

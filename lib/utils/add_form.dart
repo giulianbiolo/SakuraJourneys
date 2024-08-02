@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Define a custom Form widget.
 class AddForm extends StatefulWidget {
@@ -175,7 +176,7 @@ class AddFormState extends State<AddForm> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     // Validate returns true if the form is valid, or false otherwise.
                     if (_formKey.currentState!.validate()) {
                       // If the form is valid, display a snackbar. In the real world,
@@ -194,7 +195,16 @@ class AddFormState extends State<AddForm> {
                       );
                       Provider.of<ListModel>(context, listen: false)
                           .addData(data);
-                      Navigator.pop(context);
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      if (context.mounted) {
+                        String settingString =
+                            Provider.of<ListModel>(context, listen: false)
+                                .toString();
+                        print("Now saving the following string:\n$settingString");
+                        prefs.setString('dataList',settingString);
+                        Navigator.pop(context);
+                      }
                     }
                   },
                   child: const Text('Submit'),

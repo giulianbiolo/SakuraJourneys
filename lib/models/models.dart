@@ -14,6 +14,11 @@ class LocationModel {
     return LocationModel(
         double.parse(latLngList[0]), double.parse(latLngList[1]));
   }
+
+  @override
+  String toString() {
+    return "($lat, $lng)";
+  }
 }
 
 class DataModel {
@@ -33,6 +38,11 @@ class DataModel {
     this.description,
     this.rating,
   );
+
+  @override
+  String toString() {
+    return "$title|:|$imageName|:|$address|:|$location|:|$alreadySeen|:|$description|:|$rating";
+  }
 }
 
 class ListModel extends ChangeNotifier implements ReassembleHandler {
@@ -73,6 +83,15 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
     return _data.contains(data);
   }
 
+  void loadData(List<DataModel> newData) {
+    if (newData.isEmpty) { return; }
+    _data.clear();
+    for (DataModel data in newData) {
+      _data.add(data);
+    }
+    notifyListeners();
+  }
+
   void sortData() {
     _data.sort((a, b) {
       if (a.alreadySeen && !b.alreadySeen) {
@@ -87,7 +106,35 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
   }
 
   @override
-  void reassemble() { }
+  void reassemble() {}
+
+  @override
+  String toString() {
+    String result = "";
+    for (DataModel data in _data) {
+      result += "$data|;|";
+    }
+    return result;
+  }
+}
+
+List<DataModel> dataFromString(String datastr) {
+  List<DataModel> listModel = [];
+    List<String> dataList = datastr.split("|;|");
+    for (String data in dataList) {
+      List<String> dataFields = data.split("|:|");
+      if (dataFields.length != 7) { continue; }
+      listModel.add(DataModel(
+        dataFields[0],
+        dataFields[1],
+        dataFields[2],
+        LocationModel.fromLatLngString(dataFields[3]),
+        dataFields[5],
+        double.parse(dataFields[6]),
+      ));
+      listModel.last.alreadySeen = dataFields[4] == "true";
+    }
+    return listModel;
 }
 
 enum LocationStatus { unseen, seen }
@@ -109,26 +156,26 @@ List<DataModel> dataListDefault = [
       "Sumida, Tokyo",
       LocationModel(35.7101, 139.8107),
       "The Tokyo Skytree is a broadcasting and observation tower in Sumida, Tokyo. It became the tallest structure in Japan in 2010 and reached its full height of 634.0 meters in March 2011, making it the tallest tower in the world.",
-      200.0),
+      4.0),
   DataModel(
       "Akihabara",
       "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/akihabara.jpg?raw=true",
       "Akihabara, Tokyo",
       LocationModel(35.698333, 139.773056),
       "Akihabara is a neighborhood in Tokyo located less than five minutes by rail from Tokyo Station. Akihabara is a major shopping area for electronic, computer, anime, games, and otaku goods.",
-      300.0),
+      5.0),
   DataModel(
       "TeamLab BorderLess",
       "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/teamlab_borderless.jpg?raw=true",
       "6-chome, Toyosu, Koto-ku, Tokyo",
       LocationModel(35.649074249937755, 139.78983024721975),
       "teamLab Planets is an art facility that utilizes digital technology and was established by teamLab and DMM.com. The art space is vast, and the visitor is encouraged to move around the space with others.",
-      200.0),
+      4.0),
   DataModel(
       "Tokyo Imperial Palace",
       "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/tokyo_imperial_palace.jpg?raw=true",
       "1-1 Chiyoda, Chiyoda-ku 100-0001 Tokyo",
       LocationModel(35.6825, 139.7521),
       "The Tokyo Imperial Palace is the main residence of the Emperor of Japan. It is a large park-like area located in the Chiyoda ward of Tokyo and contains private residences, the main palace, museums and more.",
-      250.0),
+      4.5),
 ];
