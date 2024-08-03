@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/components/add_card.dart';
 import 'package:japan_travel/components/location_card.dart';
+import 'package:japan_travel/components/settings_card.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapping_page_scroll/snapping_page_scroll.dart';
@@ -58,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         i++)
                       carouselView(i),
                     carouselView(-1),
+                    carouselView(-2),
                   ],
                 ))
           ],
@@ -75,6 +77,9 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         if (index == -1) {
           return const AddCard();
+        }
+        if (index == -2) {
+          return const SettingsCard();
         }
         //return carouselCard(context.watch<ListModel>().elem(index));
         return SingleChildScrollView(

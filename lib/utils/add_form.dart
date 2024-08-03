@@ -1,9 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:file_picker/file_picker.dart';
 
-// Define a custom Form widget.
+
 class AddForm extends StatefulWidget {
   const AddForm({super.key});
 
@@ -150,57 +154,96 @@ class AddFormState extends State<AddForm> {
           Padding(
             padding: const EdgeInsets.only(top: 20.0, bottom: 0.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: const ButtonStyle(
-                    overlayColor:
-                        WidgetStatePropertyAll(Color.fromARGB(25, 255, 0, 0)),
-                    foregroundColor:
-                        WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
                   onPressed: () async {
-                    // Validate returns true if the form is valid, or false otherwise.
-                    if (_formKey.currentState!.validate()) {
-                      // If the form is valid, display a snackbar. In the real world,
-                      // you'd often call a server or save the information in a database.
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Processing Data')),
-                      );
-                      // ? Here we need to add the data to the dataList and update the UI
-                      DataModel data = DataModel(
-                        titleText.text,
-                        imageUrlText.text,
-                        addressText.text,
-                        LocationModel.fromLatLngString(latLngText.text),
-                        descriptionText.text,
-                        double.parse(ratingText.text),
-                      );
-                      Provider.of<ListModel>(context, listen: false)
-                          .addData(data);
-                      SharedPreferences prefs =
-                          await SharedPreferences.getInstance();
-                      if (context.mounted) {
-                        String settingString =
-                            Provider.of<ListModel>(context, listen: false)
-                                .toString();
-                        print("Now saving the following string:\n$settingString");
-                        prefs.setString('dataList',settingString);
-                        Navigator.pop(context);
+                    // ? Open the file selector
+                    FilePickerResult? result = await FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: ['json'],
+                    );
+                    if (result != null) {
+                      File file = File(result.files.single.path!);
+                      String fileContent = await file.readAsString();
+                      Map<String, dynamic> loadedData = jsonDecode(fileContent);
+                      try {
+                        List<DataModel> dataList = dataFromJson(loadedData);
+                        if (context.mounted) {
+                          Provider.of<ListModel>(context, listen: false).loadData(dataList);
+                          SharedPreferences prefs = await SharedPreferences.getInstance();
+                          prefs.setString('dataList', fileContent);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Error loading data')),
+                          );
+                        }
                       }
                     }
                   },
-                  child: const Text('Submit'),
+                  child: const Text('Load from file'),
                 ),
-              ],
-            ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style: const ButtonStyle(
+                        overlayColor:
+                            WidgetStatePropertyAll(Color.fromARGB(25, 255, 0, 0)),
+                        foregroundColor:
+                            WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        // Validate returns true if the form is valid, or false otherwise.
+                        if (_formKey.currentState!.validate()) {
+                          // If the form is valid, display a snackbar. In the real world,
+                          // you'd often call a server or save the information in a database.
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Processing Data')),
+                          );
+                          // ? Here we need to add the data to the dataList and update the UI
+                          DataModel data = DataModel(
+                            titleText.text,
+                            imageUrlText.text,
+                            addressText.text,
+                            LocationModel.fromLatLngString(latLngText.text),
+                            descriptionText.text,
+                            double.parse(ratingText.text),
+                          );
+                          Provider.of<ListModel>(context, listen: false)
+                              .addData(data);
+                          SharedPreferences prefs =
+                              await SharedPreferences.getInstance();
+                          if (context.mounted) {
+                            String settingString =
+                                Provider.of<ListModel>(context, listen: false)
+                                    .toString();
+                            print("Now saving the following string:\n$settingString");
+                            prefs.setString('dataList',settingString);
+                            Navigator.pop(context);
+                          }
+                        }
+                      },
+                      child: const Text('Submit'),
+                    ),
+                  ],
+                ),
+              ]
+            )
+            
+            
           )
         ],
       ),

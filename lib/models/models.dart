@@ -118,6 +118,25 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
     }
     return result;
   }
+
+  Map<String, dynamic> toJson() {
+    Map<String, dynamic> jsonData = {
+      "data": [],
+    };
+    for (DataModel data in _data) {
+      jsonData["data"].add({
+        "title": data.title,
+        "imageName": data.imageName,
+        "address": data.address,
+        "location": data.location.toString(),
+        "description": data.description,
+        "rating": data.rating.toString(),
+        "alreadySeen": data.alreadySeen ? "true" : "false",
+      });
+    }
+    return jsonData;
+  }
+
 }
 
 List<DataModel> dataFromString(String datastr) {
@@ -137,6 +156,22 @@ List<DataModel> dataFromString(String datastr) {
       double.parse(dataFields[6]),
     ));
     listModel.last.alreadySeen = dataFields[4] == "true";
+  }
+  return listModel;
+}
+
+List<DataModel> dataFromJson(Map<String, dynamic> jsonData) {
+  List<DataModel> listModel = [];
+  for (Map<String, dynamic> data in jsonData["data"]) {
+    listModel.add(DataModel(
+      data["title"],
+      data["imageName"],
+      data["address"],
+      LocationModel.fromLatLngString(data["location"]),
+      data["description"],
+      double.parse(data["rating"]),
+    ));
+    listModel.last.alreadySeen = data["alreadySeen"] == "true";
   }
   return listModel;
 }
