@@ -38,16 +38,6 @@ class AddFormState extends State<AddForm> {
         children: [
           Column(
             children: <Widget>[
-              /*
-          TextFormField(
-            // The validator receives the text that the user has entered.
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter some text';
-              }
-              return null;
-            },
-          ),*/
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Title",
