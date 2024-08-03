@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_html/flutter_html.dart';
 
-
 class LocationCard extends StatelessWidget {
   final DataModel data;
   const LocationCard({super.key, required this.data});
@@ -86,7 +85,7 @@ class LocationCard extends StatelessWidget {
                         color: Colors.white,
                         image: DecorationImage(
                             image: Image.network(
-                              "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/404page.jpg?raw=true",
+                              urlTo404Page,
                               fit: BoxFit.cover,
                             ).image,
                             fit: BoxFit.cover,
@@ -259,26 +258,23 @@ class LocationCard extends StatelessWidget {
     );
   }
 
-  (String, Color) getHumanizedDistance(double distance) {
-    if (distance < 50.0) {
+  (String, Color) getHumanizedDistance(double dist) {
+    if (dist < 50.0) {
       return ("Here!", Colors.blue);
     }
-    if (distance < 100.0) {
+    if (dist < 100.0) {
       return ("< 100 m", Colors.teal);
     }
-    if (distance < 1000.0) {
-      return ("${distance.toStringAsFixed(0)} m", Colors.green);
+    if (dist < 1000.0) {
+      return ("${dist.toStringAsFixed(0)} m", Colors.green);
     }
-    if (distance < 10000.0) {
-      return ("${(distance / 1000.0).toStringAsFixed(2)} km", Colors.orange);
+    if (dist < 10000.0) {
+      return ("${(dist / 1000.0).toStringAsFixed(2)} km", Colors.orange);
     }
-    if (distance < 100000.0) {
-      return (
-        "${(distance / 1000.0).toStringAsFixed(1)} km",
-        Colors.deepOrange
-      );
+    if (dist < 100000.0) {
+      return ("${(dist / 1000.0).toStringAsFixed(1)} km", Colors.deepOrange);
     }
-    return ("${(distance / 1000.0).toStringAsFixed(0)} km", Colors.purple);
+    return ("${(dist / 1000.0).toStringAsFixed(0)} km", Colors.purple);
   }
 
   Future<void> navigateTo(double lat, double lng) async {

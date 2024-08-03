@@ -84,7 +84,9 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
   }
 
   void loadData(List<DataModel> newData) {
-    if (newData.isEmpty) { return; }
+    if (newData.isEmpty) {
+      return;
+    }
     _data.clear();
     for (DataModel data in newData) {
       _data.add(data);
@@ -120,24 +122,29 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
 
 List<DataModel> dataFromString(String datastr) {
   List<DataModel> listModel = [];
-    List<String> dataList = datastr.split("|;|");
-    for (String data in dataList) {
-      List<String> dataFields = data.split("|:|");
-      if (dataFields.length != 7) { continue; }
-      listModel.add(DataModel(
-        dataFields[0],
-        dataFields[1],
-        dataFields[2],
-        LocationModel.fromLatLngString(dataFields[3]),
-        dataFields[5],
-        double.parse(dataFields[6]),
-      ));
-      listModel.last.alreadySeen = dataFields[4] == "true";
+  List<String> dataList = datastr.split("|;|");
+  for (String data in dataList) {
+    List<String> dataFields = data.split("|:|");
+    if (dataFields.length != 7) {
+      continue;
     }
-    return listModel;
+    listModel.add(DataModel(
+      dataFields[0],
+      dataFields[1],
+      dataFields[2],
+      LocationModel.fromLatLngString(dataFields[3]),
+      dataFields[5],
+      double.parse(dataFields[6]),
+    ));
+    listModel.last.alreadySeen = dataFields[4] == "true";
+  }
+  return listModel;
 }
 
 enum LocationStatus { unseen, seen }
+
+String urlTo404Page =
+    "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/404page.jpg?raw=true";
 
 List<DataModel> dataListDefault = [
   /*
