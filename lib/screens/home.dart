@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/components/add_settings_card.dart';
@@ -8,6 +10,8 @@ import 'package:snapping_page_scroll/snapping_page_scroll.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geo/geo.dart';
 import 'package:provider/provider.dart';
+import 'package:share_handler/share_handler.dart';
+import 'package:share_handler_platform_interface/share_handler_platform_interface.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,15 +23,41 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
   final int _currentPage = 0;
+  SharedMedia? media;
 
   @override
   void initState() {
     super.initState();
+    initPlatformState();
     loadData(Provider.of<ListModel>(context, listen: false)).then((value) =>
         orderDataOnCurrLocation(
             Provider.of<ListModel>(context, listen: false)));
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
+  }
+
+  Future<void> initPlatformState() async {
+    final handler = ShareHandlerPlatform.instance;
+    media = await handler.getInitialSharedMedia();
+
+    handler.sharedMediaStream.listen((SharedMedia media) {
+      if (!mounted) return;
+      print('Received shared media: $media');
+      print(
+          'Received media.conversationIdentifier: ${media.conversationIdentifier}');
+      print('Received media.content: ${media.content}');
+
+      // ? Expect a JSON string as content -> use it to update our list
+      if (media.content != null && media.content!.isNotEmpty) {
+        // check for the content to start with: {"data": [{"title":
+        if (media.content!.startsWith("{\"data\":[{\"title\":")) {
+          Map<String, dynamic> receivedJson = jsonDecode(media.content!);
+          List<DataModel> receivedData = dataFromJson(receivedJson);
+          Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+        }
+      }
+    });
+    if (!mounted) return;
   }
 
   @override
@@ -87,19 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     height: 1100.0,
                     alignment: Alignment.center,
-                    child: LocationCard(data: context.watch<ListModel>().elem(index)),
+                    child: LocationCard(
+                        data: context.watch<ListModel>().elem(index)),
                   ),
-                  /*
-                  Container(
-                    color: const Color.fromARGB(255, 17, 17, 25),
-                    height: 100.0,
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Bottom',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  )
-                    */
                 ],
               )),
         );

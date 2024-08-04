@@ -84,12 +84,20 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
   }
 
   void loadData(List<DataModel> newData) {
-    if (newData.isEmpty) {
-      return;
-    }
-    _data.clear();
     for (DataModel data in newData) {
-      _data.add(data);
+      if (_data.contains(data)) {
+        continue;
+      }
+      // if _data contains an element with the same title, substitute with new one
+      bool found = false;
+      for (int i = 0; i < _data.length; i++) {
+        if (_data[i].title == data.title) {
+          _data[i] = data;
+          found = true;
+          break;
+        }
+      }
+      if (!found) _data.add(data);
     }
     notifyListeners();
   }
@@ -137,6 +145,21 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
     return jsonData;
   }
 
+  static Map<String, dynamic> toJsonSingle(DataModel data) {
+    return {
+      "data": [
+        {
+          "title": data.title,
+          "imageName": data.imageName,
+          "address": data.address,
+          "location": data.location.toString(),
+          "description": data.description,
+          "rating": data.rating.toString(),
+          "alreadySeen": data.alreadySeen ? "true" : "false",
+        }
+      ]
+    };
+  }
 }
 
 List<DataModel> dataFromString(String datastr) {

@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -152,7 +155,7 @@ class LocationCard extends StatelessWidget {
           child: Column(
             children: [
               Padding(
-                // ******* Title *******
+                // *** Card Title ***
                 padding:
                     const EdgeInsets.only(top: 10.0, left: 10.0, right: 10.0),
                 child: Text(
@@ -164,7 +167,7 @@ class LocationCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                // ******* Location *******
+                // *** Card Location ***
                 padding: const EdgeInsets.only(bottom: 10.0),
                 child: SizedBox(
                   width: 250,
@@ -202,7 +205,7 @@ class LocationCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                // ******* Description & Delete Button *******
+                // *** Description & Action Buttons For Single Card ***
                 padding: const EdgeInsets.all(0.0),
                 child: SizedBox(
                     height: 450,
@@ -227,28 +230,52 @@ class LocationCard extends StatelessWidget {
                               ),
                             },
                           ),
-                          IconButton(
-                            onPressed: () => {
-                              // ? Remove the card
-                              Provider.of<ListModel>(context, listen: false)
-                                  .removeData(data),
-                              SharedPreferences.getInstance().then((prefs) {
-                                String settingString = Provider.of<ListModel>(
-                                        context,
-                                        listen: false)
-                                    .toString();
-                                prefs.setString('dataList', settingString);
-                              }),
-                            },
-                            style: const ButtonStyle(
-                                backgroundColor: WidgetStatePropertyAll(
-                                    Color.fromARGB(25, 255, 0, 0))),
-                            icon: const Icon(
-                              Icons.close,
-                              size: 32,
-                              color: Colors.red,
-                            ),
-                          ),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // *** Quick Share Of Single Card ***
+                              IconButton(
+                                onPressed: () async {
+                                  Map<String, dynamic> jsonData = ListModel.toJsonSingle(data);
+                                  String jsonString = jsonEncode(jsonData);
+                                  Share.share(jsonString);
+                                },
+                                style: const ButtonStyle(
+                                    backgroundColor: WidgetStatePropertyAll(
+                                        Color.fromARGB(24, 0, 200, 255))),
+                                icon: const Icon(
+                                  Icons.share,
+                                  size: 32,
+                                  color: Colors.blue
+                                ),
+                              ),
+                              // *** Delete Of Single Card ***
+                              IconButton(
+                                onPressed: () => {
+                                  // ? Remove the card
+                                  Provider.of<ListModel>(context, listen: false)
+                                      .removeData(data),
+                                  SharedPreferences.getInstance().then((prefs) {
+                                    String settingString = Provider.of<ListModel>(
+                                            context,
+                                            listen: false)
+                                        .toString();
+                                    prefs.setString('dataList', settingString);
+                                  }),
+                                },
+                                style: const ButtonStyle(
+                                    backgroundColor: WidgetStatePropertyAll(
+                                        Color.fromARGB(25, 255, 0, 0))),
+                                icon: const Icon(
+                                  Icons.close,
+                                  size: 32,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          )
                         ])),
               ),
             ],

@@ -44,6 +44,9 @@ dependencies:
   provider: ^6.1.2
   flutter_html: ^3.0.0-beta.2
   file_picker: ^8.0.0+1
+  share_plus: ^7.2.2
+  share_handler: ^0.0.21
+
 
 dev_dependencies:
   flutter_test:
