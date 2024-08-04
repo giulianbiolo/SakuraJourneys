@@ -42,75 +42,104 @@ class AddFormState extends State<SettingsForm> {
       child: Column(
         children: [
           Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               // ? Make some big buttons: Load From File, Export as File, Reset To Default
-              ElevatedButton(
-                onPressed: () async {
-                    // ? Open the file selector
-                    FilePickerResult? result = await FilePicker.platform.pickFiles(
-                      type: FileType.custom,
-                      allowedExtensions: ['json'],
-                    );
-                    if (result != null) {
-                      File file = File(result.files.single.path!);
-                      String fileContent = await file.readAsString();
-                      Map<String, dynamic> loadedData = jsonDecode(fileContent);
-                      try {
-                        List<DataModel> dataList = dataFromJson(loadedData);
-                        if (context.mounted) {
-                          Provider.of<ListModel>(context, listen: false).loadData(dataList);
-                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                          prefs.setString('dataList', fileContent);
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                      // ? Open the file selector
+                      FilePickerResult? result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['json'],
+                      );
+                      if (result != null) {
+                        File file = File(result.files.single.path!);
+                        String fileContent = await file.readAsString();
+                        Map<String, dynamic> loadedData = jsonDecode(fileContent);
+                        try {
+                          List<DataModel> dataList = dataFromJson(loadedData);
                           if (context.mounted) {
-                            Navigator.pop(context);
+                            Provider.of<ListModel>(context, listen: false).loadData(dataList);
+                            SharedPreferences prefs = await SharedPreferences.getInstance();
+                            prefs.setString('dataList', fileContent);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Error loading data')),
+                            );
                           }
                         }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Error loading data')),
-                          );
-                        }
+                      }
+                    },
+                  style: const ButtonStyle(
+                    alignment: Alignment.center,
+                    fixedSize: WidgetStatePropertyAll(Size(200, 50)),
+                  ),
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Import From File'),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Map<String, dynamic> jsonData = Provider.of<ListModel>(context, listen: false).toJson();
+                    String jsonString = jsonEncode(jsonData);
+                    String? result = await FilePicker.platform.saveFile(
+                      dialogTitle: 'Save your data',
+                      type: FileType.custom,
+                      allowedExtensions: ['json'],
+                      fileName: 'exportData.json',
+                      bytes: Uint8List(524288) // 512 KiB
+                    );
+                    if (result != null) {
+                      File file = File(result);
+                      await file.writeAsString(jsonString);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Error saving data')),
+                        );
                       }
                     }
                   },
-                child: const Text('Import From File'),
+                  style: const ButtonStyle(
+                    alignment: Alignment.center,
+                    fixedSize: WidgetStatePropertyAll(Size(200, 50)),
+                  ),
+                  icon: const Icon(Icons.download),
+                  label: const Text('Export To File'),
+                ),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  Map<String, dynamic> jsonData = Provider.of<ListModel>(context, listen: false).toJson();
-                  String jsonString = jsonEncode(jsonData);
-                  String? result = await FilePicker.platform.saveFile(
-                    dialogTitle: 'Save your data',
-                    type: FileType.custom,
-                    allowedExtensions: ['json'],
-                    fileName: 'exportData.json',
-                    bytes: Uint8List(524288) // 512 KiB
-                  );
-                  if (result != null) {
-                    File file = File(result);
-                    await file.writeAsString(jsonString);
-                  } else {
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    SharedPreferences prefs = await SharedPreferences.getInstance();
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Error saving data')),
-                      );
+                      Provider.of<ListModel>(context, listen: false).loadData(dataListDefault);
+                      String defaultData = Provider.of<ListModel>(context, listen: false).toString();
+                      prefs.setString('dataList', defaultData);
+                      Provider.of<ListModel>(context, listen: false).notify();
+                      Navigator.pop(context);
                     }
-                  }
-                },
-                child: const Text('Export To File'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
-                  if (context.mounted) {
-                    Provider.of<ListModel>(context, listen: false).loadData(dataListDefault);
-                    String defaultData = Provider.of<ListModel>(context, listen: false).toString();
-                    prefs.setString('dataList', defaultData);
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('Reset To Default'),
+                  },
+                  style: const ButtonStyle(
+                    overlayColor: WidgetStatePropertyAll(Color.fromARGB(25, 255, 0, 0)),
+                    foregroundColor: WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
+                    alignment: Alignment.center,
+                    fixedSize: WidgetStatePropertyAll(Size(200, 50)),
+                  ),
+                  icon: const Icon(Icons.restore),
+                  label: const Text('Reset To Default'),
+                ),
               ),
             ],
           ),
