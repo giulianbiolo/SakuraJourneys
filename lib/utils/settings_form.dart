@@ -54,28 +54,36 @@ class AddFormState extends State<SettingsForm> {
                     FilePickerResult? result =
                         await FilePicker.platform.pickFiles(
                       type: FileType.custom,
-                      allowedExtensions: ['json'],
+                      allowedExtensions: ['json', 'txt', 'md'],
                     );
                     if (result != null) {
                       File file = File(result.files.single.path!);
                       String fileContent = await file.readAsString();
-                      Map<String, dynamic> loadedData = jsonDecode(fileContent);
-                      try {
-                        List<DataModel> dataList = dataFromJson(loadedData);
-                        if (context.mounted) {
-                          Provider.of<ListModel>(context, listen: false)
-                              .loadData(dataList);
-                          SharedPreferences prefs =
-                              await SharedPreferences.getInstance();
-                          prefs.setString('dataList', fileContent);
+                      if (fileContent.isNotEmpty && fileContent.startsWith("{\"data\":[{\"title\":")) {
+                        Map<String, dynamic> loadedData = jsonDecode(fileContent);
+                        try {
+                          List<DataModel> dataList = dataFromJson(loadedData);
                           if (context.mounted) {
-                            Navigator.pop(context);
+                            Provider.of<ListModel>(context, listen: false)
+                                .loadData(dataList);
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            prefs.setString('dataList', fileContent);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Error loading data')),
+                            );
                           }
                         }
-                      } catch (e) {
+                      } else {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Error loading data')),
+                            const SnackBar(content: Text('Invalid data format')),
                           );
                         }
                       }
