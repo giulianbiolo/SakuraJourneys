@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final handler = ShareHandlerPlatform.instance;
     media = await handler.getInitialSharedMedia();
 
-    handler.sharedMediaStream.listen((SharedMedia media) {
+    handler.sharedMediaStream.listen((SharedMedia media) async {
       if (!mounted) return;
       print('Received shared media: $media');
       print(
@@ -54,6 +55,23 @@ class _HomeScreenState extends State<HomeScreen> {
           Map<String, dynamic> receivedJson = jsonDecode(media.content!);
           List<DataModel> receivedData = dataFromJson(receivedJson);
           Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+        }
+      } else {
+        if (media.attachments != null && media.attachments!.isNotEmpty) {
+          for(int i = 0; i < media.attachments!.length; i++) {
+            SharedAttachment attachment = media.attachments![i]!;
+            if (attachment.type == SharedAttachmentType.file && (attachment.path.endsWith(".json") || attachment.path.endsWith(".txt") || attachment.path.endsWith(".md"))) {
+              File file = File(attachment.path);
+              String fileContent = await file.readAsString();
+              if (fileContent.isNotEmpty && fileContent.startsWith("{\"data\":[{\"title\":")) {
+                Map<String, dynamic> receivedJson = jsonDecode(fileContent);
+                List<DataModel> receivedData = dataFromJson(receivedJson);
+                if (mounted) {
+                  Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+                }
+              }
+            }
+          }
         }
       }
     });
