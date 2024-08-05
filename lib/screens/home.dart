@@ -11,7 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geo/geo.dart';
 import 'package:provider/provider.dart';
 import 'package:share_handler/share_handler.dart';
-import 'package:share_handler_platform_interface/share_handler_platform_interface.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

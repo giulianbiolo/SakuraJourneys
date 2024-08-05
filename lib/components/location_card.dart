@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/utils/edit_card_form.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -230,7 +231,6 @@ class LocationCard extends StatelessWidget {
                               ),
                             },
                           ),
-
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -238,19 +238,43 @@ class LocationCard extends StatelessWidget {
                               // *** Quick Share Of Single Card ***
                               IconButton(
                                 onPressed: () async {
-                                  Map<String, dynamic> jsonData = ListModel.toJsonSingle(data);
+                                  Map<String, dynamic> jsonData =
+                                      ListModel.toJsonSingle(data);
                                   String jsonString = jsonEncode(jsonData);
                                   Share.share(jsonString);
                                 },
                                 style: const ButtonStyle(
                                     backgroundColor: WidgetStatePropertyAll(
                                         Color.fromARGB(24, 0, 200, 255))),
-                                icon: const Icon(
-                                  Icons.share,
-                                  size: 32,
-                                  color: Colors.blue
-                                ),
+                                icon: const Icon(Icons.share,
+                                    size: 32, color: Colors.blue),
                               ),
+                              // *** Edit Of Single Card ***
+                              IconButton(
+                                onPressed: () async {
+                                  // ? Edit Form here
+                                  await showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text("Edit Card Info"),
+                                        scrollable: true,
+                                        content: Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 8.0, left: 8.0, right: 8.0),
+                                          child: EditCardForm(initialCardData: data,),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                style: const ButtonStyle(
+                                    backgroundColor: WidgetStatePropertyAll(
+                                        Color.fromARGB(25, 255, 100, 0))),
+                                icon: const Icon(Icons.edit_note,
+                                    size: 32, color: Colors.orange),
+                              ),
+
                               // *** Delete Of Single Card ***
                               IconButton(
                                 onPressed: () => {
@@ -258,10 +282,10 @@ class LocationCard extends StatelessWidget {
                                   Provider.of<ListModel>(context, listen: false)
                                       .removeData(data),
                                   SharedPreferences.getInstance().then((prefs) {
-                                    String settingString = Provider.of<ListModel>(
-                                            context,
-                                            listen: false)
-                                        .toString();
+                                    String settingString =
+                                        Provider.of<ListModel>(context,
+                                                listen: false)
+                                            .toString();
                                     prefs.setString('dataList', settingString);
                                   }),
                                 },
