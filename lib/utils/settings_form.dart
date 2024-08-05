@@ -87,6 +87,12 @@ class AddFormState extends State<SettingsForm> {
                           );
                         }
                       }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No file selected')),
+                        );
+                      }
                     }
                   },
                   style: const ButtonStyle(
@@ -156,6 +162,7 @@ class AddFormState extends State<SettingsForm> {
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();
                     if (context.mounted) {
+                      Provider.of<ListModel>(context, listen: false).clearAllData();
                       Provider.of<ListModel>(context, listen: false)
                           .loadData(dataListDefault);
                       String defaultData =

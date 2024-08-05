@@ -12,6 +12,7 @@ class AddSettingsCard extends StatelessWidget {
       Expanded(
           child: Column(
         children: [
+          Container(height: 75),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(10.0),
@@ -102,7 +103,8 @@ class AddSettingsCard extends StatelessWidget {
                     )),
               ),
             ),
-          ))
+          )),
+          Container(height: 75),
         ],
       ))
     ]);

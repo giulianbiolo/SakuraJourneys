@@ -10,11 +10,21 @@ void main() async {
   await SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp],
   );
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+
+  SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Color.fromARGB(255, 17, 17, 25),
-    systemNavigationBarDividerColor: Color.fromARGB(255, 17, 17, 25),
-  ));
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    systemStatusBarContrastEnforced: false
+  );
+  SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: [SystemUiOverlay.bottom]);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
   runApp(
     ChangeNotifierProvider(
         create: (context) => ListModel(),
@@ -42,9 +52,10 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.red,
+        primarySwatch: Colors.indigo,
         scaffoldBackgroundColor: const Color.fromARGB(255, 17, 17, 25),
         fontFamily: 'Roboto',
+        useMaterial3: true,
       ),
       home: const HomeScreen(),
     );

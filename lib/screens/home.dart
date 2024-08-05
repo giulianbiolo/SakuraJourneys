@@ -94,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             AspectRatio(
-                aspectRatio: 0.55,
+                aspectRatio: MediaQuery.of(context).size.aspectRatio,
                 child: SnappingPageScroll(
                   onPageChanged: (value) => {
                     HapticFeedback.mediumImpact(),
@@ -108,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     carouselView(-1),
                   ],
                 ))
+                
           ],
         ),
       ),
@@ -132,9 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
+                  Container(height: 75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
                   Container(
                     height: 1100.0,
                     alignment: Alignment.center,
+                    //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
                     child: LocationCard(
                         data: context.watch<ListModel>().elem(index)),
                   ),

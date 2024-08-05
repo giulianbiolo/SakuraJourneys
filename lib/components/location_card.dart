@@ -217,8 +217,8 @@ class LocationCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Html(
-                            data: data.description.length > 500
-                                ? "<p>${data.description.substring(0, 500)}...</p>"
+                            data: data.description.length > maxDescriptionLength
+                                ? "<p>${data.description.substring(0, maxDescriptionLength)}...</p>"
                                 : "<p>${data.description}</p>",
                             style: {
                               "p": Style(
