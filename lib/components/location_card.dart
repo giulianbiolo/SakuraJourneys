@@ -154,38 +154,47 @@ class LocationCard extends StatelessWidget {
         Expanded(
           flex: 1,
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Padding(
-                // *** Card Title ***
-                padding:
-                    const EdgeInsets.only(top: 10.0, left: 10.0, right: 10.0),
-                child: Text(
-                  data.title,
-                  style: TextStyle(
-                      color: data.alreadySeen ? Colors.grey : Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold),
+                Padding(
+                  // *** Card Title ***
+                  padding:
+                      const EdgeInsets.only(top: 10.0, left: 10.0, right: 10.0),
+                  child: Text(
+                    data.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: data.alreadySeen ? Colors.grey : Colors.white,
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
+              
               Padding(
                 // *** Card Location ***
-                padding: const EdgeInsets.only(bottom: 10.0),
+                padding: const EdgeInsets.only(bottom: 10.0, left: 30.0, right: 30.0),
                 child: SizedBox(
-                  width: 250,
+                  width: (MediaQuery.of(context).size.width),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisSize: MainAxisSize.max,
                     children: [
-                      Text(
-                        textAlign: TextAlign.left,
-                        data.address.length > 25
-                            ? "${data.address.substring(0, 25)}..."
-                            : data.address,
-                        style: TextStyle(
-                            color: data.alreadySeen
-                                ? Colors.white70
-                                : Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.normal),
+                      Expanded(
+                        flex: 1,
+                        child: Text(
+                          data.address,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.left,
+                          //data.address.length > 25
+                          //    ? "${data.address.substring(0, 25)}..."
+                          //    : data.address,
+                          style: TextStyle(
+                              color: data.alreadySeen
+                                  ? Colors.white70
+                                  : Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.normal),
+                        ),
                       ),
                       Badge(
                         alignment: Alignment.center,
@@ -207,10 +216,10 @@ class LocationCard extends StatelessWidget {
               ),
               Padding(
                 // *** Description & Action Buttons For Single Card ***
-                padding: const EdgeInsets.all(0.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: SizedBox(
                     height: 450,
-                    width: 300,
+                    width: MediaQuery.of(context).size.width,
                     child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         mainAxisSize: MainAxisSize.min,
@@ -228,6 +237,8 @@ class LocationCard extends StatelessWidget {
                                 fontSize: FontSize(14),
                                 fontWeight: FontWeight.normal,
                                 textAlign: TextAlign.center,
+                                height: Height(370),
+                                
                               ),
                             },
                           ),
