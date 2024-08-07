@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,8 +60,10 @@ class AddFormState extends State<SettingsForm> {
                     if (result != null) {
                       File file = File(result.files.single.path!);
                       String fileContent = await file.readAsString();
-                      if (fileContent.isNotEmpty && fileContent.startsWith("{\"data\":[{\"title\":")) {
-                        Map<String, dynamic> loadedData = jsonDecode(fileContent);
+                      if (fileContent.isNotEmpty &&
+                          fileContent.startsWith("{\"data\":[{\"title\":")) {
+                        Map<String, dynamic> loadedData =
+                            jsonDecode(fileContent);
                         try {
                           List<DataModel> dataList = dataFromJson(loadedData);
                           if (context.mounted) {
@@ -76,14 +79,16 @@ class AddFormState extends State<SettingsForm> {
                         } catch (e) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Error loading data')),
+                              const SnackBar(
+                                  content: Text('Error loading data')),
                             );
                           }
                         }
                       } else {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invalid data format')),
+                            const SnackBar(
+                                content: Text('Invalid data format')),
                           );
                         }
                       }
@@ -162,13 +167,16 @@ class AddFormState extends State<SettingsForm> {
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();
                     if (context.mounted) {
-                      Provider.of<ListModel>(context, listen: false).clearAllData();
+                      Provider.of<ListModel>(context, listen: false)
+                          .clearAllData();
                       Provider.of<ListModel>(context, listen: false)
                           .loadData(dataListDefault);
                       String defaultData =
                           Provider.of<ListModel>(context, listen: false)
                               .toString();
                       prefs.setString('dataList', defaultData);
+                      orderDataOnCurrLocation(
+                          Provider.of<ListModel>(context, listen: false), true);
                       Provider.of<ListModel>(context, listen: false).notify();
                       Navigator.pop(context);
                     }
