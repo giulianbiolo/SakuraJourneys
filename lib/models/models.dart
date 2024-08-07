@@ -45,9 +45,9 @@ class DataModel {
   }
 }
 
-const int maxTitleLength = 20;
+const int maxTitleLength = 25;
 const int maxDescriptionLength = 650;
-const int maxAddressLength = 25;
+const int maxAddressLength = 35;
 
 class ListModel extends ChangeNotifier implements ReassembleHandler {
   final List<DataModel> _data = [];

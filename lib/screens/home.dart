@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     initPlatformState();
     loadData(Provider.of<ListModel>(context, listen: false)).then((value) =>
         orderDataOnCurrLocation(
-            Provider.of<ListModel>(context, listen: false)));
+            Provider.of<ListModel>(context, listen: false), true));
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
   }
@@ -135,12 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: <Widget>[
                   Container(height: 75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
                   Container(
-                    height: 1100.0,
+                    height: 1190.0,
                     alignment: Alignment.center,
                     //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
                     child: LocationCard(
                         data: context.watch<ListModel>().elem(index)),
                   ),
+                  Container(height: 25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
                 ],
               )),
         );
@@ -161,7 +162,7 @@ Future<void> loadData(ListModel dataList) async {
   dataList.loadData(savedList);
 }
 
-Future<void> orderDataOnCurrLocation(ListModel dataList) async {
+Future<void> orderDataOnCurrLocation(ListModel dataList, bool updateAllDistances) async {
   try {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -177,13 +178,14 @@ Future<void> orderDataOnCurrLocation(ListModel dataList) async {
   Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high);
   for (int i = 0; i < dataList.length(); i++) {
+    DataModel currCard = dataList.elem(i);
+    if (!updateAllDistances && currCard.distance > 1.0) { continue; }
     LatLng p1 = LatLng(position.latitude, position.longitude);
     LatLng p2 =
-        LatLng(dataList.elem(i).location.lat, dataList.elem(i).location.lng);
+        LatLng(currCard.location.lat, currCard.location.lng);
     num distance = computeDistanceBetween(p1, p2, radius: 6371008.8);
-    DataModel data = dataList.elem(i);
-    data.distance = distance.toDouble();
-    dataList.updateData(data, i);
+    currCard.distance = distance.toDouble();
+    dataList.updateData(currCard, i);
   }
   // ? Sort the array based on distance but also always put to the end of the list the already seen locations
   dataList.sortData();
