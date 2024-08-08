@@ -12,6 +12,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geo/geo.dart';
 import 'package:provider/provider.dart';
 import 'package:share_handler/share_handler.dart';
+import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
+import 'package:japan_travel/components/check_mark_indicator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
   final int _currentPage = 0;
+  final indicatorController = IndicatorController();
   SharedMedia? media;
 
   @override
@@ -122,28 +125,45 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 0.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            AspectRatio(
-                aspectRatio: MediaQuery.of(context).size.aspectRatio,
-                child: SnappingPageScroll(
-                  onPageChanged: (value) => {
-                    HapticFeedback.mediumImpact(),
-                  },
-                  controller: _pageController,
-                  children: [
-                    for (int i = 0;
-                        i < context.watch<ListModel>().length();
-                        i++)
-                      carouselView(i),
-                    carouselView(-1),
-                  ],
-                ))
-          ],
+      body: CheckMarkIndicator(
+        controller: indicatorController,
+        onRefresh: () async {
+          // ? Load the data from the shared media
+          if (context.mounted) {
+            await loadData(Provider.of<ListModel>(context, listen: false));
+            if (context.mounted) {
+              await orderDataOnCurrLocation(
+                  Provider.of<ListModel>(context, listen: false), true);
+            } else {
+              throw Exception("Context is not mounted");
+            }
+          } else {
+            throw Exception("Context is not mounted");
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 0.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              AspectRatio(
+                  aspectRatio: MediaQuery.of(context).size.aspectRatio,
+                  child: SnappingPageScroll(
+                    onPageChanged: (value) => {
+                      HapticFeedback.mediumImpact(),
+                    },
+                    controller: _pageController,
+                    children: [
+                      for (int i = 0;
+                          i < context.watch<ListModel>().length();
+                          i++)
+                        carouselView(i),
+                      carouselView(-1),
+                    ],
+                  ))
+            ],
+          ),
         ),
       ),
     );
