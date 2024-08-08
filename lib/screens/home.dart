@@ -13,7 +13,6 @@ import 'package:geo/geo.dart';
 import 'package:provider/provider.dart';
 import 'package:share_handler/share_handler.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -53,9 +52,16 @@ class _HomeScreenState extends State<HomeScreen> {
         // check for the content to start with: {"data": [{"title":
         try {
           Map<String, dynamic> receivedJson = jsonDecode(media.content!);
-          if (receivedJson.containsKey("data") && receivedJson["data"] is List) {
+          if (receivedJson.containsKey("data") &&
+              receivedJson["data"] is List) {
             List<DataModel> receivedData = dataFromJson(receivedJson);
-            Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+            Provider.of<ListModel>(context, listen: false)
+                .loadData(receivedData);
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            if (mounted) {
+              prefs.setString('dataList',
+                  Provider.of<ListModel>(context, listen: false).toString());
+            }
           }
         } catch (e) {
           print("Error decoding the JSON string: $e");
@@ -65,17 +71,30 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } else {
         if (media.attachments != null && media.attachments!.isNotEmpty) {
-          for(int i = 0; i < media.attachments!.length; i++) {
+          for (int i = 0; i < media.attachments!.length; i++) {
             SharedAttachment attachment = media.attachments![i]!;
-            if (attachment.type == SharedAttachmentType.file && (attachment.path.endsWith(".json") || attachment.path.endsWith(".txt") || attachment.path.endsWith(".md"))) {
+            if (attachment.type == SharedAttachmentType.file &&
+                (attachment.path.endsWith(".json") ||
+                    attachment.path.endsWith(".txt") ||
+                    attachment.path.endsWith(".md"))) {
               File file = File(attachment.path);
               String fileContent = await file.readAsString();
               try {
                 Map<String, dynamic> receivedJson = jsonDecode(fileContent);
-                if (receivedJson.containsKey("data") && receivedJson["data"] is List) {
+                if (receivedJson.containsKey("data") &&
+                    receivedJson["data"] is List) {
                   List<DataModel> receivedData = dataFromJson(receivedJson);
                   if (mounted) {
-                    Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+                    Provider.of<ListModel>(context, listen: false)
+                        .loadData(receivedData);
+                    SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
+                    if (mounted) {
+                      prefs.setString(
+                          'dataList',
+                          Provider.of<ListModel>(context, listen: false)
+                              .toString());
+                    }
                   }
                 }
               } catch (e) {
@@ -124,7 +143,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     carouselView(-1),
                   ],
                 ))
-                
           ],
         ),
       ),
@@ -149,7 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
-                  Container(height: 75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
+                  Container(
+                      height:
+                          75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
                   Container(
                     height: 1190.0,
                     alignment: Alignment.center,
@@ -157,7 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: LocationCard(
                         data: context.watch<ListModel>().elem(index)),
                   ),
-                  Container(height: 25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
+                  Container(
+                      height:
+                          25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
                 ],
               )),
         );
@@ -178,7 +200,8 @@ Future<void> loadData(ListModel dataList) async {
   dataList.loadData(savedList);
 }
 
-Future<void> orderDataOnCurrLocation(ListModel dataList, bool updateAllDistances) async {
+Future<void> orderDataOnCurrLocation(
+    ListModel dataList, bool updateAllDistances) async {
   try {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -195,10 +218,11 @@ Future<void> orderDataOnCurrLocation(ListModel dataList, bool updateAllDistances
       desiredAccuracy: LocationAccuracy.high);
   for (int i = 0; i < dataList.length(); i++) {
     DataModel currCard = dataList.elem(i);
-    if (!updateAllDistances && currCard.distance > 1.0) { continue; }
+    if (!updateAllDistances && currCard.distance > 1.0) {
+      continue;
+    }
     LatLng p1 = LatLng(position.latitude, position.longitude);
-    LatLng p2 =
-        LatLng(currCard.location.lat, currCard.location.lng);
+    LatLng p2 = LatLng(currCard.location.lat, currCard.location.lng);
     num distance = computeDistanceBetween(p1, p2, radius: 6371008.8);
     currCard.distance = distance.toDouble();
     dataList.updateData(currCard, i);

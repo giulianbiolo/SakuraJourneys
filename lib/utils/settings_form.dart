@@ -73,8 +73,8 @@ class AddFormState extends State<SettingsForm> {
                                 .loadData(receivedData);
                             SharedPreferences prefs =
                                 await SharedPreferences.getInstance();
-                            prefs.setString('dataList', fileContent);
                             if (context.mounted) {
+                              prefs.setString('dataList', Provider.of<ListModel>(context, listen: false).toString());
                               Navigator.pop(context);
                             }
                           }
