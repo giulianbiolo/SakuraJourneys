@@ -59,6 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         } catch (e) {
           print("Error decoding the JSON string: $e");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error loading data')),
+          );
         }
       } else {
         if (media.attachments != null && media.attachments!.isNotEmpty) {
@@ -77,6 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               } catch (e) {
                 print("Error decoding the JSON string: $e");
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Error loading data')),
+                  );
+                }
               }
             }
           }
