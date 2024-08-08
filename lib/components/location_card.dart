@@ -316,25 +316,6 @@ class LocationCard extends StatelessWidget {
     );
   }
 
-  (String, Color) getHumanizedDistance(double dist) {
-    if (dist < 50.0) {
-      return ("Here!", Colors.blue);
-    }
-    if (dist < 100.0) {
-      return ("< 100 m", Colors.teal);
-    }
-    if (dist < 1000.0) {
-      return ("${dist.toStringAsFixed(0)} m", Colors.green);
-    }
-    if (dist < 10000.0) {
-      return ("${(dist / 1000.0).toStringAsFixed(2)} km", Colors.orange);
-    }
-    if (dist < 100000.0) {
-      return ("${(dist / 1000.0).toStringAsFixed(1)} km", Colors.deepOrange);
-    }
-    return ("${(dist / 1000.0).toStringAsFixed(0)} km", Colors.purple);
-  }
-
   Future<void> navigateTo(double lat, double lng) async {
     var uri = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
     if (await canLaunchUrl(uri)) {

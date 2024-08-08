@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:japan_travel/components/add_settings_card.dart';
 import 'package:japan_travel/components/location_card.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/screens/home_widget.dart';
+import 'package:japan_travel/utils/home_widget_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapping_page_scroll/snapping_page_scroll.dart';
 import 'package:geolocator/geolocator.dart';
@@ -31,10 +33,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     initPlatformState();
-    loadData(Provider.of<ListModel>(context, listen: false)).then((value) =>
-        orderDataOnCurrLocation(
-            Provider.of<ListModel>(context, listen: false), true));
+    loadData(Provider.of<ListModel>(context, listen: false))
+        .then((value) => orderDataOnCurrLocation(
+            Provider.of<ListModel>(context, listen: false), true))
+        .then((value) =>
+            WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+              HomeWidgetConfig.initialize().then((value) async {
+                HomeWidgetConfig.update(
+                    context,
+                    CardWidget(
+                        firstCard:
+                            Provider.of<ListModel>(context, listen: false)
+                                .elem(0)));
+              });
+            }));
+
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
   }
@@ -118,8 +133,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    super.dispose();
     _pageController.dispose();
+    indicatorController.dispose();
+    super.dispose();
   }
 
   @override
@@ -218,6 +234,9 @@ Future<void> loadData(ListModel dataList) async {
   print("Now loading the following string:\n$dataString");
   List<DataModel> savedList = dataFromString(dataString);
   dataList.loadData(savedList);
+  if (dataList.length() == 0) {
+    dataList.loadData(dataListDefault);
+  }
 }
 
 Future<void> orderDataOnCurrLocation(
