@@ -7,12 +7,12 @@ class LocationModel {
   LocationModel(this.lat, this.lng);
   static fromLatLngString(String latLng) {
     final latLngList = latLng
-        .substring(1, latLng.length - 1)
+        .replaceAll(RegExp(r'[()]'), '')
         .split(",")
         .map((e) => e.trim())
         .toList();
     return LocationModel(
-        double.parse(latLngList[0]), double.parse(latLngList[1]));
+        double.tryParse(latLngList[0]) ?? 0.0, double.tryParse(latLngList[1]) ?? 0.0);
   }
 
   @override

@@ -60,15 +60,17 @@ class AddFormState extends State<SettingsForm> {
                     if (result != null) {
                       File file = File(result.files.single.path!);
                       String fileContent = await file.readAsString();
-                      if (fileContent.isNotEmpty &&
-                          fileContent.startsWith("{\"data\":[{\"title\":")) {
-                        Map<String, dynamic> loadedData =
+
+                      try {
+                        Map<String, dynamic> receivedJson =
                             jsonDecode(fileContent);
-                        try {
-                          List<DataModel> dataList = dataFromJson(loadedData);
+                        if (receivedJson.containsKey("data") &&
+                            receivedJson["data"] is List) {
+                          List<DataModel> receivedData =
+                              dataFromJson(receivedJson);
                           if (context.mounted) {
                             Provider.of<ListModel>(context, listen: false)
-                                .loadData(dataList);
+                                .loadData(receivedData);
                             SharedPreferences prefs =
                                 await SharedPreferences.getInstance();
                             prefs.setString('dataList', fileContent);
@@ -76,19 +78,11 @@ class AddFormState extends State<SettingsForm> {
                               Navigator.pop(context);
                             }
                           }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Error loading data')),
-                            );
-                          }
                         }
-                      } else {
+                      } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Invalid data format')),
+                            const SnackBar(content: Text('Error loading data')),
                           );
                         }
                       }

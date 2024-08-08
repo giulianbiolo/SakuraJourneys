@@ -51,10 +51,14 @@ class _HomeScreenState extends State<HomeScreen> {
       // ? Expect a JSON string as content -> use it to update our list
       if (media.content != null && media.content!.isNotEmpty) {
         // check for the content to start with: {"data": [{"title":
-        if (media.content!.startsWith("{\"data\":[{\"title\":")) {
+        try {
           Map<String, dynamic> receivedJson = jsonDecode(media.content!);
-          List<DataModel> receivedData = dataFromJson(receivedJson);
-          Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+          if (receivedJson.containsKey("data") && receivedJson["data"] is List) {
+            List<DataModel> receivedData = dataFromJson(receivedJson);
+            Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+          }
+        } catch (e) {
+          print("Error decoding the JSON string: $e");
         }
       } else {
         if (media.attachments != null && media.attachments!.isNotEmpty) {
@@ -63,12 +67,16 @@ class _HomeScreenState extends State<HomeScreen> {
             if (attachment.type == SharedAttachmentType.file && (attachment.path.endsWith(".json") || attachment.path.endsWith(".txt") || attachment.path.endsWith(".md"))) {
               File file = File(attachment.path);
               String fileContent = await file.readAsString();
-              if (fileContent.isNotEmpty && fileContent.startsWith("{\"data\":[{\"title\":")) {
+              try {
                 Map<String, dynamic> receivedJson = jsonDecode(fileContent);
-                List<DataModel> receivedData = dataFromJson(receivedJson);
-                if (mounted) {
-                  Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+                if (receivedJson.containsKey("data") && receivedJson["data"] is List) {
+                  List<DataModel> receivedData = dataFromJson(receivedJson);
+                  if (mounted) {
+                    Provider.of<ListModel>(context, listen: false).loadData(receivedData);
+                  }
                 }
+              } catch (e) {
+                print("Error decoding the JSON string: $e");
               }
             }
           }
