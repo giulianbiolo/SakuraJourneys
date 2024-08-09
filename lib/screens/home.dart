@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/components/add_settings_card.dart';
@@ -175,9 +176,9 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         //return carouselCard(context.watch<ListModel>().elem(index));
         return SingleChildScrollView(
-          child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 680),
-              child: Column(
+          dragStartBehavior: DragStartBehavior.down,
+          primary: true,
+          child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: <Widget>[
@@ -195,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       height:
                           25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
                 ],
-              )),
+              ),
         );
       },
     );
