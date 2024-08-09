@@ -15,19 +15,19 @@
         android:id="@+id/widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_x="70px"
+        android:layout_x="40px"
         android:layout_y="480px"
         android:textColor="#FFFFFF"
-        android:textSize="26sp"
+        android:textSize="25sp"
         android:textStyle="bold" />
     <TextView
     android:id="@+id/widget_distance"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_x="70px"
-    android:layout_y="550px"
+    android:layout_x="40px"
+    android:layout_y="560px"
     android:textColor="#FFFFFF"
-    android:textSize="22sp"
+    android:textSize="19sp"
     android:textStyle="bold" />
 </AbsoluteLayout>
 

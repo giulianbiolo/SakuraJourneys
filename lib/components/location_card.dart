@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/screens/home.dart';
 import 'package:japan_travel/utils/edit_card_form.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -77,6 +78,7 @@ class LocationCard extends StatelessWidget {
                       "dataList",
                       Provider.of<ListModel>(context, listen: false)
                           .toString());
+                  updateCards(Provider.of<ListModel>(context, listen: false), false, false, false);
                   Provider.of<ListModel>(context, listen: false).notify();
                 })
               },
@@ -156,19 +158,18 @@ class LocationCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-                Padding(
-                  // *** Card Title ***
-                  padding:
-                      const EdgeInsets.all(10.0),
-                  child: Text(
-                    data.title,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: data.alreadySeen ? Colors.grey : Colors.white,
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold),
-                  ),
+              Padding(
+                // *** Card Title ***
+                padding: const EdgeInsets.all(10.0),
+                child: Text(
+                  data.title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: data.alreadySeen ? Colors.grey : Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold),
                 ),
+              ),
               Padding(
                 // *** Card Location & Distance Badge ***
                 padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -212,7 +213,8 @@ class LocationCard extends StatelessWidget {
               ),
               Padding(
                 // *** Description & Action Buttons For Single Card ***
-                padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0),
+                padding:
+                    const EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0),
                 child: SizedBox(
                     height: 450,
                     width: MediaQuery.of(context).size.width,
@@ -234,7 +236,6 @@ class LocationCard extends StatelessWidget {
                                 fontWeight: FontWeight.normal,
                                 textAlign: TextAlign.center,
                                 height: Height(370),
-                                
                               ),
                             },
                           ),
@@ -269,7 +270,9 @@ class LocationCard extends StatelessWidget {
                                         content: Padding(
                                           padding: const EdgeInsets.only(
                                               top: 8.0, left: 8.0, right: 8.0),
-                                          child: EditCardForm(initialCardData: data,),
+                                          child: EditCardForm(
+                                            initialCardData: data,
+                                          ),
                                         ),
                                       );
                                     },
@@ -294,6 +297,7 @@ class LocationCard extends StatelessWidget {
                                                 listen: false)
                                             .toString();
                                     prefs.setString('dataList', settingString);
+                                    updateCards(Provider.of<ListModel>(context, listen: false), false, false, false);
                                   }),
                                 },
                                 style: const ButtonStyle(

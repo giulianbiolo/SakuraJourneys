@@ -57,6 +57,7 @@ dependencies:
   home_widget: ^0.6.0
   path_provider: ^2.1.4
   http: ^1.2.2
+  palette_generator: ^0.3.3+4
 
 
 

@@ -209,12 +209,10 @@ class EditCardFormState extends State<EditCardForm> {
                         String settingString =
                             Provider.of<ListModel>(context, listen: false)
                                 .toString();
-                        print(
-                            "Now saving the following string:\n$settingString");
                         prefs.setString('dataList', settingString);
                         // Update distance
-                        orderDataOnCurrLocation(
-                            Provider.of<ListModel>(context, listen: false), false);
+                        updateCards(
+                            Provider.of<ListModel>(context, listen: false), false, true, false);
                         Navigator.pop(context);
                       }
                     }

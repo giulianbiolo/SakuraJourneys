@@ -74,7 +74,16 @@ class AddFormState extends State<SettingsForm> {
                             SharedPreferences prefs =
                                 await SharedPreferences.getInstance();
                             if (context.mounted) {
-                              prefs.setString('dataList', Provider.of<ListModel>(context, listen: false).toString());
+                              prefs.setString(
+                                  'dataList',
+                                  Provider.of<ListModel>(context, listen: false)
+                                      .toString());
+                              updateCards(
+                                  Provider.of<ListModel>(context,
+                                      listen: false),
+                                  false,
+                                  false,
+                                  false);
                               Navigator.pop(context);
                             }
                           }
@@ -169,10 +178,15 @@ class AddFormState extends State<SettingsForm> {
                           Provider.of<ListModel>(context, listen: false)
                               .toString();
                       prefs.setString('dataList', defaultData);
-                      orderDataOnCurrLocation(
-                          Provider.of<ListModel>(context, listen: false), true);
-                      Provider.of<ListModel>(context, listen: false).notify();
-                      Navigator.pop(context);
+                      await updateCards(
+                          Provider.of<ListModel>(context, listen: false),
+                          false,
+                          true,
+                          true);
+                      if (context.mounted) {
+                        Provider.of<ListModel>(context, listen: false).notify();
+                        Navigator.pop(context);
+                      }
                     }
                   },
                   style: const ButtonStyle(
@@ -199,12 +213,6 @@ class AddFormState extends State<SettingsForm> {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  // style: const ButtonStyle(
-                  //   overlayColor:
-                  //       WidgetStatePropertyAll(Color.fromARGB(25, 255, 0, 0)),
-                  //   foregroundColor:
-                  //       WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
-                  // ),
                   child: const Text('Close'),
                 ),
               ],

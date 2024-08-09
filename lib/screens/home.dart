@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:japan_travel/components/add_settings_card.dart';
 import 'package:japan_travel/components/location_card.dart';
 import 'package:japan_travel/models/models.dart';
-import 'package:japan_travel/screens/home_widget.dart';
 import 'package:japan_travel/utils/home_widget_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapping_page_scroll/snapping_page_scroll.dart';
@@ -26,32 +25,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
+  late IndicatorController _indicatorController;
   final int _currentPage = 0;
-  final indicatorController = IndicatorController();
   SharedMedia? media;
 
   @override
   void initState() {
     super.initState();
-
     initPlatformState();
-    loadData(Provider.of<ListModel>(context, listen: false))
-        .then((value) => orderDataOnCurrLocation(
-            Provider.of<ListModel>(context, listen: false), true))
-        .then((value) =>
-            WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-              HomeWidgetConfig.initialize().then((value) async {
-                HomeWidgetConfig.update(
-                    context,
-                    CardWidget(
-                        firstCard:
-                            Provider.of<ListModel>(context, listen: false)
-                                .elem(0)));
-              });
-            }));
-
+    updateCards(Provider.of<ListModel>(context, listen: false));
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
+    _indicatorController = IndicatorController();
   }
 
   Future<void> initPlatformState() async {
@@ -60,11 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     handler.sharedMediaStream.listen((SharedMedia media) async {
       if (!mounted) return;
-      print('Received shared media: $media');
-      print(
-          'Received media.conversationIdentifier: ${media.conversationIdentifier}');
-      print('Received media.content: ${media.content}');
-
       // ? Expect a JSON string as content -> use it to update our list
       if (media.content != null && media.content!.isNotEmpty) {
         // check for the content to start with: {"data": [{"title":
@@ -82,10 +62,11 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }
         } catch (e) {
-          print("Error decoding the JSON string: $e");
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error loading data')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error loading data')),
+            );
+          }
         }
       } else {
         if (media.attachments != null && media.attachments!.isNotEmpty) {
@@ -116,7 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 }
               } catch (e) {
-                print("Error decoding the JSON string: $e");
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Error loading data')),
@@ -133,8 +113,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _indicatorController.dispose();
     _pageController.dispose();
-    indicatorController.dispose();
     super.dispose();
   }
 
@@ -142,15 +122,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: CheckMarkIndicator(
-        controller: indicatorController,
+        controller: _indicatorController,
         onRefresh: () async {
           // ? Load the data from the shared media
           if (context.mounted) {
-            await loadData(Provider.of<ListModel>(context, listen: false));
-            if (context.mounted) {
-              await orderDataOnCurrLocation(
-                  Provider.of<ListModel>(context, listen: false), true);
-            } else {
+            try {
+              await updateCards(Provider.of<ListModel>(context, listen: false));
+            } catch (e) {
               throw Exception("Context is not mounted");
             }
           } else {
@@ -224,6 +202,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+Future<void> updateCards(ListModel dataList,
+    [bool reloadFromMemory = true,
+    bool reorderData = true,
+    bool updateAllDistances = true]) async {
+  if (reloadFromMemory) {
+    await loadData(dataList);
+  }
+  if (reorderData) {
+    await orderDataOnCurrLocation(dataList, updateAllDistances);
+  }
+  updateWidget(dataList);
+}
+
+void updateWidget(ListModel dataList) {
+  WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+    HomeWidgetConfig.initialize().then((value) async {
+      HomeWidgetConfig.update(dataList.elem(0));
+    });
+  });
+}
+
 Future<void> loadData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String dataString = (prefs.getString("dataList") ?? "")
@@ -231,7 +230,6 @@ Future<void> loadData(ListModel dataList) async {
       .replaceAll("\n", "")
       .replaceAll("[", "")
       .replaceAll("]", "");
-  print("Now loading the following string:\n$dataString");
   List<DataModel> savedList = dataFromString(dataString);
   dataList.loadData(savedList);
   if (dataList.length() == 0) {

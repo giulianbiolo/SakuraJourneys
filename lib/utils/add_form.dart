@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -233,8 +234,8 @@ class AddFormState extends State<AddForm> {
                             String settingString =
                                 Provider.of<ListModel>(context, listen: false)
                                     .toString();
-                            print("Now saving the following string:\n$settingString");
                             prefs.setString('dataList',settingString);
+                            updateCards(Provider.of<ListModel>(context, listen: false), false, false, false);
                             Navigator.pop(context);
                           }
                         }

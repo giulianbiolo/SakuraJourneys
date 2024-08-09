@@ -31,6 +31,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/*" />
             </intent-filter>
+            <!-- This Intent is used to implement the Click Widget to open Maps functionality -->
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+            </intent-filter>
         </activity>
 
         <!-- Home Screen - Card Widget -->
