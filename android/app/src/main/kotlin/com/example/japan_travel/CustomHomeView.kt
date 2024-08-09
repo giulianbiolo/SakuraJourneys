@@ -42,7 +42,7 @@ class CustomHomeView : HomeWidgetProvider() {
             val lat = widgetData.getString("lat", "0.0")
             val lng = widgetData.getString("lng", "0.0")
             val intent = Intent("android.intent.action.VIEW", Uri.parse("google.navigation:q=$lat,$lng&mode=d"))
-            val pendingIntentWithData = PendingIntent.getActivity(context, 0, intent, 67108864)
+            val pendingIntentWithData = PendingIntent.getActivity(context, 0, intent, 67108864) // ? FLAG_IMMUTABLE
             views.setOnClickPendingIntent(R.id.widget_image, pendingIntentWithData)
 
             views.setTextViewText(R.id.widget_title, cardTitle)
