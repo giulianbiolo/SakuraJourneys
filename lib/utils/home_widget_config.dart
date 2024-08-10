@@ -16,7 +16,6 @@ class HomeWidgetConfig {
     await Directory(firstPath).create(recursive: true);
     File file2 = File(filePathAndName);
     file2.writeAsBytesSync(response.bodyBytes);
-    print("File saved to $filePathAndName");
 
     PaletteGenerator paletteGenerator =
         await PaletteGenerator.fromImageProvider(
@@ -25,9 +24,6 @@ class HomeWidgetConfig {
       region: const Rect.fromLTWH(0, 500, 1000, 200)
     );
     Color dominantColor = paletteGenerator.dominantColor?.color ?? Colors.black;
-    print("Dominant Color: $dominantColor");
-    //String textColor = colorHex(invert(dominantColor));
-    //print("Now saving text color as $textColor");
     String textColor = colorHex(invert(dominantColor));
 
     await HomeWidget.saveWidgetData('title', firstCard.title);

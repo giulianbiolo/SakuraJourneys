@@ -226,8 +226,7 @@ void updateWidget(ListModel dataList) {
 }
 
 Future<void> orderDataOnCurrLocation(
-    ListModel dataList, bool updateAllDistances,
-    [LocationAccuracy desiredAccuracy = LocationAccuracy.high]) async {
+    ListModel dataList, bool updateAllDistances) async {
   try {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -240,8 +239,11 @@ Future<void> orderDataOnCurrLocation(
   } catch (e) {
     return;
   }
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  double lastCloserLocation = prefs.getDouble('lastCloserLocation') ?? 0.0;
+  LocationAccuracy intelligentAccuracy = computeIntelligentAccuracy(lastCloserLocation);
   Position position =
-      await Geolocator.getCurrentPosition(desiredAccuracy: desiredAccuracy);
+      await Geolocator.getCurrentPosition(desiredAccuracy: intelligentAccuracy);
   for (int i = 0; i < dataList.length(); i++) {
     DataModel currCard = dataList.elem(i);
     if (!updateAllDistances && currCard.distance > 1.0) {
@@ -253,6 +255,29 @@ Future<void> orderDataOnCurrLocation(
     currCard.distance = distance.toDouble();
     dataList.updateData(currCard, i);
   }
-  // ? Sort the array based on distance but also always put to the end of the list the already seen locations
   dataList.sortData();
+  prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
+}
+
+/// Given the [lastCloserLocation] this function will return the intelligent accuracy
+/// which is the best accuracy to use when computing the new distances
+/// to maximize power efficiency by at the same time keeping the distance values
+/// as accurate as possible, this is a trade-off between power consumption and accuracy
+/// * If the last closer location is more than 1000km away, then we can use LocationAccuracy.lowest
+/// * If the last closer location is more than 100km away, then we can use LocationAccuracy.low
+/// * If the last closer location is more than 10km away, then we can use LocationAccuracy.medium
+/// * If the last closer location is more than 1km away, then we can use LocationAccuracy.high
+/// * If the last closer location is less than 1km away, then we can use LocationAccuracy.best
+LocationAccuracy computeIntelligentAccuracy(double lastCloserLocation) {
+  if (lastCloserLocation > 1000000.0) {
+    return LocationAccuracy.lowest;
+  } else if (lastCloserLocation > 100000.0) {
+    return LocationAccuracy.low;
+  } else if (lastCloserLocation > 10000.0) {
+    return LocationAccuracy.medium;
+  } else if (lastCloserLocation > 1000.0) {
+    return LocationAccuracy.high;
+  } else {
+    return LocationAccuracy.best;
+  }
 }
