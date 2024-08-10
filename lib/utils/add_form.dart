@@ -235,7 +235,7 @@ class AddFormState extends State<AddForm> {
                                 Provider.of<ListModel>(context, listen: false)
                                     .toString();
                             prefs.setString('dataList',settingString);
-                            updateCards(Provider.of<ListModel>(context, listen: false), false, false, false);
+                            updateCards(Provider.of<ListModel>(context, listen: false), reloadFromMemory: false, reorderData: false, updateAllDistances: false);
                             Navigator.pop(context);
                           }
                         }

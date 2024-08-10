@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationModel {
   final double lat;
@@ -187,6 +188,20 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
         }
       ]
     };
+  }
+}
+
+Future<void> loadData(ListModel dataList) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String dataString = (prefs.getString("dataList") ?? "")
+      .trim()
+      .replaceAll("\n", "")
+      .replaceAll("[", "")
+      .replaceAll("]", "");
+  List<DataModel> savedList = dataFromString(dataString);
+  dataList.loadData(savedList);
+  if (dataList.length() == 0) {
+    dataList.loadData(dataListDefault);
   }
 }
 

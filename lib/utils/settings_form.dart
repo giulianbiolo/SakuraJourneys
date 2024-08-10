@@ -81,9 +81,9 @@ class AddFormState extends State<SettingsForm> {
                               updateCards(
                                   Provider.of<ListModel>(context,
                                       listen: false),
-                                  false,
-                                  false,
-                                  false);
+                                  reloadFromMemory: false,
+                                  reorderData: false,
+                                  updateAllDistances: false);
                               Navigator.pop(context);
                             }
                           }
@@ -180,9 +180,9 @@ class AddFormState extends State<SettingsForm> {
                       prefs.setString('dataList', defaultData);
                       await updateCards(
                           Provider.of<ListModel>(context, listen: false),
-                          false,
-                          true,
-                          true);
+                          reloadFromMemory: false,
+                          reorderData: true,
+                          updateAllDistances: true);
                       if (context.mounted) {
                         Provider.of<ListModel>(context, listen: false).notify();
                         Navigator.pop(context);

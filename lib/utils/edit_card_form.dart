@@ -212,7 +212,7 @@ class EditCardFormState extends State<EditCardForm> {
                         prefs.setString('dataList', settingString);
                         // Update distance
                         updateCards(
-                            Provider.of<ListModel>(context, listen: false), false, true, false);
+                            Provider.of<ListModel>(context, listen: false), reloadFromMemory: false, reorderData: true, updateAllDistances: false);
                         Navigator.pop(context);
                       }
                     }

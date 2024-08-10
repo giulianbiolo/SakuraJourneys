@@ -78,7 +78,10 @@ class LocationCard extends StatelessWidget {
                       "dataList",
                       Provider.of<ListModel>(context, listen: false)
                           .toString());
-                  updateCards(Provider.of<ListModel>(context, listen: false), false, false, false);
+                  updateCards(Provider.of<ListModel>(context, listen: false),
+                      reloadFromMemory: false,
+                      reorderData: false,
+                      updateAllDistances: false);
                   Provider.of<ListModel>(context, listen: false).notify();
                 })
               },
@@ -297,7 +300,12 @@ class LocationCard extends StatelessWidget {
                                                 listen: false)
                                             .toString();
                                     prefs.setString('dataList', settingString);
-                                    updateCards(Provider.of<ListModel>(context, listen: false), false, false, false);
+                                    updateCards(
+                                        Provider.of<ListModel>(context,
+                                            listen: false),
+                                        reloadFromMemory: false,
+                                        reorderData: false,
+                                        updateAllDistances: false);
                                   }),
                                 },
                                 style: const ButtonStyle(

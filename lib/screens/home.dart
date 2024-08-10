@@ -179,24 +179,24 @@ class _HomeScreenState extends State<HomeScreen> {
           dragStartBehavior: DragStartBehavior.down,
           primary: true,
           child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  Container(
-                      height:
-                          75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
-                  Container(
-                    height: 1190.0,
-                    alignment: Alignment.center,
-                    //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
-                    child: LocationCard(
-                        data: context.watch<ListModel>().elem(index)),
-                  ),
-                  Container(
-                      height:
-                          25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
-                ],
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: <Widget>[
+              Container(
+                  height:
+                      75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
+              Container(
+                height: 1190.0,
+                alignment: Alignment.center,
+                //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
+                child:
+                    LocationCard(data: context.watch<ListModel>().elem(index)),
               ),
+              Container(
+                  height:
+                      25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
+            ],
+          ),
         );
       },
     );
@@ -204,9 +204,10 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 Future<void> updateCards(ListModel dataList,
-    [bool reloadFromMemory = true,
+    {bool reloadFromMemory = true,
     bool reorderData = true,
-    bool updateAllDistances = true]) async {
+    bool updateAllDistances = true,
+    LocationAccuracy desiredAccuracy = LocationAccuracy.high}) async {
   if (reloadFromMemory) {
     await loadData(dataList);
   }
@@ -224,22 +225,9 @@ void updateWidget(ListModel dataList) {
   });
 }
 
-Future<void> loadData(ListModel dataList) async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String dataString = (prefs.getString("dataList") ?? "")
-      .trim()
-      .replaceAll("\n", "")
-      .replaceAll("[", "")
-      .replaceAll("]", "");
-  List<DataModel> savedList = dataFromString(dataString);
-  dataList.loadData(savedList);
-  if (dataList.length() == 0) {
-    dataList.loadData(dataListDefault);
-  }
-}
-
 Future<void> orderDataOnCurrLocation(
-    ListModel dataList, bool updateAllDistances) async {
+    ListModel dataList, bool updateAllDistances,
+    [LocationAccuracy desiredAccuracy = LocationAccuracy.high]) async {
   try {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -252,8 +240,8 @@ Future<void> orderDataOnCurrLocation(
   } catch (e) {
     return;
   }
-  Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high);
+  Position position =
+      await Geolocator.getCurrentPosition(desiredAccuracy: desiredAccuracy);
   for (int i = 0; i < dataList.length(); i++) {
     DataModel currCard = dataList.elem(i);
     if (!updateAllDistances && currCard.distance > 1.0) {
