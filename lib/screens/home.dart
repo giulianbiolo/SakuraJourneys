@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
             try {
               await updateCards(Provider.of<ListModel>(context, listen: false));
             } catch (e) {
-              throw Exception("Context is not mounted");
+              throw Exception("Error in updateCards() method");
             }
           } else {
             throw Exception("Context is not mounted");
@@ -206,8 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
 Future<void> updateCards(ListModel dataList,
     {bool reloadFromMemory = true,
     bool reorderData = true,
-    bool updateAllDistances = true,
-    LocationAccuracy desiredAccuracy = LocationAccuracy.high}) async {
+    bool updateAllDistances = true}) async {
   if (reloadFromMemory) {
     await loadData(dataList);
   }
@@ -215,6 +214,7 @@ Future<void> updateCards(ListModel dataList,
     await orderDataOnCurrLocation(dataList, updateAllDistances);
   }
   updateWidget(dataList);
+  return Future.value();
 }
 
 void updateWidget(ListModel dataList) {
@@ -233,17 +233,24 @@ Future<void> orderDataOnCurrLocation(
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        return;
+        return Future.value();
       }
     }
   } catch (e) {
-    return;
+    return Future.error(Exception("Could not get hold of GPS."));
   }
   SharedPreferences prefs = await SharedPreferences.getInstance();
   double lastCloserLocation = prefs.getDouble('lastCloserLocation') ?? 0.0;
-  LocationAccuracy intelligentAccuracy = computeIntelligentAccuracy(lastCloserLocation);
-  Position position =
-      await Geolocator.getCurrentPosition(desiredAccuracy: intelligentAccuracy);
+  LocationAccuracy intelligentAccuracy =
+      computeIntelligentAccuracy(lastCloserLocation);
+  Position position;
+  try {
+    position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: intelligentAccuracy,
+        timeLimit: const Duration(seconds: 10));
+  } catch (e) {
+    return Future.value();
+  }
   for (int i = 0; i < dataList.length(); i++) {
     DataModel currCard = dataList.elem(i);
     if (!updateAllDistances && currCard.distance > 1.0) {
@@ -257,27 +264,26 @@ Future<void> orderDataOnCurrLocation(
   }
   dataList.sortData();
   prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
+  return Future.value();
 }
 
 /// Given the [lastCloserLocation] this function will return the intelligent accuracy
 /// which is the best accuracy to use when computing the new distances
 /// to maximize power efficiency by at the same time keeping the distance values
 /// as accurate as possible, this is a trade-off between power consumption and accuracy
-/// * If the last closer location is more than 1000km away, then we can use LocationAccuracy.lowest
 /// * If the last closer location is more than 100km away, then we can use LocationAccuracy.low
 /// * If the last closer location is more than 10km away, then we can use LocationAccuracy.medium
 /// * If the last closer location is more than 1km away, then we can use LocationAccuracy.high
 /// * If the last closer location is less than 1km away, then we can use LocationAccuracy.best
 LocationAccuracy computeIntelligentAccuracy(double lastCloserLocation) {
-  if (lastCloserLocation > 1000000.0) {
-    return LocationAccuracy.lowest;
-  } else if (lastCloserLocation > 100000.0) {
+  if (lastCloserLocation > 100000.0) {
     return LocationAccuracy.low;
-  } else if (lastCloserLocation > 10000.0) {
-    return LocationAccuracy.medium;
-  } else if (lastCloserLocation > 1000.0) {
-    return LocationAccuracy.high;
-  } else {
-    return LocationAccuracy.best;
   }
+  if (lastCloserLocation > 10000.0) {
+    return LocationAccuracy.medium;
+  }
+  if (lastCloserLocation > 1000.0) {
+    return LocationAccuracy.high;
+  }
+  return LocationAccuracy.best;
 }

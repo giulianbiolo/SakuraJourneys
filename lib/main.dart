@@ -1,4 +1,3 @@
-import 'package:geolocator/geolocator.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:japan_travel/screens/home.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +10,7 @@ import 'package:workmanager/workmanager.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     try {
-      await updateCards(ListModel(), desiredAccuracy: LocationAccuracy.medium);
+      await updateCards(ListModel());
     } catch (e) {
       return Future.error(e);
     }
