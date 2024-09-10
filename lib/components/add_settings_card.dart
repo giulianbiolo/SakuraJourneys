@@ -12,6 +12,7 @@ class AddSettingsCard extends StatelessWidget {
       Expanded(
           child: Column(
         children: [
+          Container(height: 75),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(10.0),
@@ -46,9 +47,9 @@ class AddSettingsCard extends StatelessWidget {
                               color: Colors.white30,
                             )
                           ]),
-                      child: const SizedBox(
-                        width: 300,
-                        child: Icon(
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width - 20,
+                        child: const Icon(
                           Icons.add,
                           size: 100,
                           color: Colors.white70,
@@ -92,9 +93,9 @@ class AddSettingsCard extends StatelessWidget {
                             color: Colors.white30,
                           )
                         ]),
-                    child: const SizedBox(
-                      width: 300,
-                      child: Icon(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width - 20,
+                      child: const Icon(
                         Icons.settings,
                         size: 100,
                         color: Colors.white70,
@@ -102,7 +103,8 @@ class AddSettingsCard extends StatelessWidget {
                     )),
               ),
             ),
-          ))
+          )),
+          Container(height: 63),
         ],
       ))
     ]);

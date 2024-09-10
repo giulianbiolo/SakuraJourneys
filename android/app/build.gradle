@@ -56,3 +56,10 @@ android {
 flutter {
     source = "../.."
 }
+
+// * Added to fix a dependency issue with the AndroidX WorkManager
+configurations {
+    all {
+        exclude group: 'androidx.work', module: 'work-runtime-ktx'
+    }
+}

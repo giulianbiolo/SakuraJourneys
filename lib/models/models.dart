@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationModel {
   final double lat;
@@ -10,18 +11,37 @@ class LocationModel {
       return LocationModel(0.0, 0.0);
     }
     final latLngList = latLng
-        .substring(1, latLng.length - 1)
+        .replaceAll(RegExp(r'[()]'), '')
         .split(",")
         .map((e) => e.trim())
         .toList();
     return LocationModel(
-        double.parse(latLngList[0]), double.parse(latLngList[1]));
+        double.tryParse(latLngList[0]) ?? 0.0, double.tryParse(latLngList[1]) ?? 0.0);
   }
 
   @override
   String toString() {
     return "($lat, $lng)";
   }
+}
+
+(String, Color) getHumanizedDistance(double dist) {
+  if (dist < 50.0) {
+    return ("Here!", Colors.blue);
+  }
+  if (dist < 100.0) {
+    return ("< 100 m", Colors.teal);
+  }
+  if (dist < 1000.0) {
+    return ("${dist.toStringAsFixed(0)} m", Colors.green);
+  }
+  if (dist < 10000.0) {
+    return ("${(dist / 1000.0).toStringAsFixed(2)} km", Colors.orange);
+  }
+  if (dist < 100000.0) {
+    return ("${(dist / 1000.0).toStringAsFixed(1)} km", Colors.deepOrange);
+  }
+  return ("${(dist / 1000.0).toStringAsFixed(0)} km", Colors.purple);
 }
 
 class DataModel {
@@ -48,10 +68,19 @@ class DataModel {
   }
 }
 
+const int maxTitleLength = 25;
+const int maxDescriptionLength = 650;
+const int maxAddressLength = 35;
+
 class ListModel extends ChangeNotifier implements ReassembleHandler {
-  final List<DataModel> _data = dataListDefault;
+  final List<DataModel> _data = [];
   void addData(DataModel data) {
     _data.add(data);
+    notifyListeners();
+  }
+
+  void clearAllData() {
+    _data.clear();
     notifyListeners();
   }
 
@@ -162,6 +191,20 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
         }
       ]
     };
+  }
+}
+
+Future<void> loadData(ListModel dataList) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String dataString = (prefs.getString("dataList") ?? "")
+      .trim()
+      .replaceAll("\n", "")
+      .replaceAll("[", "")
+      .replaceAll("]", "");
+  List<DataModel> savedList = dataFromString(dataString);
+  dataList.loadData(savedList);
+  if (dataList.length() == 0) {
+    dataList.loadData(dataListDefault);
   }
 }
 

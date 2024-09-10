@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,22 +55,37 @@ class AddFormState extends State<SettingsForm> {
                     FilePickerResult? result =
                         await FilePicker.platform.pickFiles(
                       type: FileType.custom,
-                      allowedExtensions: ['json'],
+                      allowedExtensions: ['json', 'txt', 'md'],
                     );
                     if (result != null) {
                       File file = File(result.files.single.path!);
                       String fileContent = await file.readAsString();
-                      Map<String, dynamic> loadedData = jsonDecode(fileContent);
+
                       try {
-                        List<DataModel> dataList = dataFromJson(loadedData);
-                        if (context.mounted) {
-                          Provider.of<ListModel>(context, listen: false)
-                              .loadData(dataList);
-                          SharedPreferences prefs =
-                              await SharedPreferences.getInstance();
-                          prefs.setString('dataList', fileContent);
+                        Map<String, dynamic> receivedJson =
+                            jsonDecode(fileContent);
+                        if (receivedJson.containsKey("data") &&
+                            receivedJson["data"] is List) {
+                          List<DataModel> receivedData =
+                              dataFromJson(receivedJson);
                           if (context.mounted) {
-                            Navigator.pop(context);
+                            Provider.of<ListModel>(context, listen: false)
+                                .loadData(receivedData);
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            if (context.mounted) {
+                              prefs.setString(
+                                  'dataList',
+                                  Provider.of<ListModel>(context, listen: false)
+                                      .toString());
+                              updateCards(
+                                  Provider.of<ListModel>(context,
+                                      listen: false),
+                                  reloadFromMemory: false,
+                                  reorderData: false,
+                                  updateAllDistances: false);
+                              Navigator.pop(context);
+                            }
                           }
                         }
                       } catch (e) {
@@ -78,6 +94,12 @@ class AddFormState extends State<SettingsForm> {
                             const SnackBar(content: Text('Error loading data')),
                           );
                         }
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No file selected')),
+                        );
                       }
                     }
                   },
@@ -149,13 +171,22 @@ class AddFormState extends State<SettingsForm> {
                         await SharedPreferences.getInstance();
                     if (context.mounted) {
                       Provider.of<ListModel>(context, listen: false)
+                          .clearAllData();
+                      Provider.of<ListModel>(context, listen: false)
                           .loadData(dataListDefault);
                       String defaultData =
                           Provider.of<ListModel>(context, listen: false)
                               .toString();
                       prefs.setString('dataList', defaultData);
-                      Provider.of<ListModel>(context, listen: false).notify();
-                      Navigator.pop(context);
+                      await updateCards(
+                          Provider.of<ListModel>(context, listen: false),
+                          reloadFromMemory: false,
+                          reorderData: true,
+                          updateAllDistances: true);
+                      if (context.mounted) {
+                        Provider.of<ListModel>(context, listen: false).notify();
+                        Navigator.pop(context);
+                      }
                     }
                   },
                   style: const ButtonStyle(
@@ -182,12 +213,6 @@ class AddFormState extends State<SettingsForm> {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  // style: const ButtonStyle(
-                  //   overlayColor:
-                  //       WidgetStatePropertyAll(Color.fromARGB(25, 255, 0, 0)),
-                  //   foregroundColor:
-                  //       WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
-                  // ),
                   child: const Text('Close'),
                 ),
               ],
