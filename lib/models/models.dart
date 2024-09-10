@@ -7,7 +7,7 @@ class LocationModel {
   final double lng;
   LocationModel(this.lat, this.lng);
   static fromLatLngString(String latLng) {
-    if (latLng.isEmpty) {
+    if (latLng.trim().isEmpty) {
       return LocationModel(0.0, 0.0);
     }
     final latLngList = latLng
