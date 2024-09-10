@@ -6,6 +6,9 @@ class LocationModel {
   final double lng;
   LocationModel(this.lat, this.lng);
   static fromLatLngString(String latLng) {
+    if (latLng.isEmpty) {
+      return LocationModel(0.0, 0.0);
+    }
     final latLngList = latLng
         .substring(1, latLng.length - 1)
         .split(",")
