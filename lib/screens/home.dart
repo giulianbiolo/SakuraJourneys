@@ -220,7 +220,7 @@ Future<void> updateCards(ListModel dataList,
 void updateWidget(ListModel dataList) {
   WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
     HomeWidgetConfig.initialize().then((value) async {
-      HomeWidgetConfig.update(dataList.elem(0));
+      await HomeWidgetConfig.update(dataList.elem(0));
     });
   });
 }
