@@ -285,7 +285,11 @@ Future<void> orderDataOnCurrLocation(
     dataList.updateData(currCard, i);
   }
   dataList.sortData();
-  prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
+  if (dataList.length() > 0) {
+    prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
+  } else {
+    prefs.setDouble('lastCloserLocation', 0.0);
+  }
   return Future.value();
 }
 
