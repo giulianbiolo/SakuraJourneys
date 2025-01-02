@@ -1,3 +1,4 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "android.sdkLocation": "/home/giulianbiolo/Android/Sdk/platforms/android-30"
 }

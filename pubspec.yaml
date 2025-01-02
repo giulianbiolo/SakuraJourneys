@@ -3,7 +3,12 @@ description: "App to help you travel in Japan"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-
+repository: https://github.com/giulianbiolo/SakuraJourneys
+topics:
+  - home-screen-widget
+  - native
+  - android
+  - ios
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
 # followed by an optional build number separated by a +.
@@ -20,6 +25,7 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.4.4 <4.0.0'
+  flutter: '>=3.20.0-1.2.pre'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -47,6 +53,12 @@ dependencies:
   share_plus: ^7.2.2
   share_handler: ^0.0.21
   custom_refresh_indicator: ^4.0.1
+  workmanager: ^0.5.2
+  home_widget: ^0.6.0
+  path_provider: ^2.1.4
+  http: ^1.2.2
+  palette_generator: ^0.3.3+4
+
 
 
 dev_dependencies:
@@ -72,7 +84,6 @@ flutter_icons:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

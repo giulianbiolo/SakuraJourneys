@@ -75,6 +75,12 @@ class AddFormState extends State<SettingsForm> {
                                 await SharedPreferences.getInstance();
                             if (context.mounted) {
                               prefs.setString('dataList', jsonEncode(Provider.of<ListModel>(context, listen: false).toJson()));
+                              updateCards(
+                                  Provider.of<ListModel>(context,
+                                      listen: false),
+                                  reloadFromMemory: false,
+                                  reorderData: false,
+                                  updateAllDistances: false);
                               Navigator.pop(context);
                             }
                           }
@@ -173,6 +179,15 @@ class AddFormState extends State<SettingsForm> {
                           Provider.of<ListModel>(context, listen: false), true);
                       Provider.of<ListModel>(context, listen: false).notify();
                       Navigator.pop(context);
+                      await updateCards(
+                          Provider.of<ListModel>(context, listen: false),
+                          reloadFromMemory: false,
+                          reorderData: true,
+                          updateAllDistances: true);
+                      if (context.mounted) {
+                        Provider.of<ListModel>(context, listen: false).notify();
+                        Navigator.pop(context);
+                      }
                     }
                   },
                   style: const ButtonStyle(
@@ -199,12 +214,6 @@ class AddFormState extends State<SettingsForm> {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  // style: const ButtonStyle(
-                  //   overlayColor:
-                  //       WidgetStatePropertyAll(Color.fromARGB(25, 255, 0, 0)),
-                  //   foregroundColor:
-                  //       WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
-                  // ),
                   child: const Text('Close'),
                 ),
               ],

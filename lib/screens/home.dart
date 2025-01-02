@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/components/add_settings_card.dart';
 import 'package:japan_travel/components/location_card.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/utils/home_widget_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapping_page_scroll/snapping_page_scroll.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,8 +26,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
+  late IndicatorController _indicatorController;
   final int _currentPage = 0;
-  final indicatorController = IndicatorController();
   SharedMedia? media;
 
   @override
@@ -39,8 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Provider.of<ListModel>(context, listen: false), true)
             }
         });
+    updateCards(Provider.of<ListModel>(context, listen: false));
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
+    _indicatorController = IndicatorController();
   }
 
   Future<void> initPlatformState() async {
@@ -49,11 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     handler.sharedMediaStream.listen((SharedMedia media) async {
       if (!mounted) return;
-      // print('Received shared media: $media');
-      // print(
-      //     'Received media.conversationIdentifier: ${media.conversationIdentifier}');
-      // print('Received media.content: ${media.content}');
-
       // ? Expect a JSON string as content -> use it to update our list
       if (media.content != null && media.content!.isNotEmpty) {
         // check for the content to start with: {"data": [{"title":
@@ -73,11 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }
         } catch (e) {
-          // print("Error decoding the JSON string: $e");
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error loading data')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error loading data')),
+            );
+          }
         }
       } else {
         if (media.attachments != null && media.attachments!.isNotEmpty) {
@@ -127,24 +126,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    super.dispose();
+    _indicatorController.dispose();
     _pageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: CheckMarkIndicator(
-        controller: indicatorController,
+        controller: _indicatorController,
         onRefresh: () async {
           // ? Load the data from the shared media
           if (context.mounted) {
-            await loadData(Provider.of<ListModel>(context, listen: false));
-            if (context.mounted) {
-              await orderDataOnCurrLocation(
-                  Provider.of<ListModel>(context, listen: false), true);
-            } else {
-              throw Exception("Context is not mounted");
+            try {
+              await updateCards(Provider.of<ListModel>(context, listen: false));
+            } catch (e) {
+              throw Exception("Error in updateCards() method");
             }
           } else {
             throw Exception("Context is not mounted");
@@ -190,32 +188,33 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         //return carouselCard(context.watch<ListModel>().elem(index));
         return SingleChildScrollView(
-          child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 680),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  Container(
-                      height:
-                          75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
-                  Container(
-                    height: 1190.0,
-                    alignment: Alignment.center,
-                    //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
-                    child: LocationCard(
-                        data: context.watch<ListModel>().elem(index)),
-                  ),
-                  Container(
-                      height:
-                          25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
-                ],
-              )),
+          dragStartBehavior: DragStartBehavior.down,
+          primary: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: <Widget>[
+              Container(
+                  height:
+                      75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
+              Container(
+                height: 1190.0,
+                alignment: Alignment.center,
+                //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
+                child:
+                    LocationCard(data: context.watch<ListModel>().elem(index)),
+              ),
+              Container(
+                  height:
+                      25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
+            ],
+          ),
         );
       },
     );
   }
 }
+
 
 Future<void> loadData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -223,6 +222,29 @@ Future<void> loadData(ListModel dataList) async {
   print("Now loading the following string:\n$storedCards");
   List<DataModel> savedList = ListModel.fromJson(jsonDecode(storedCards));
   dataList.loadData(savedList);
+  return Future.value();
+}
+
+Future<void> updateCards(ListModel dataList,
+    {bool reloadFromMemory = true,
+    bool reorderData = true,
+    bool updateAllDistances = true}) async {
+  if (reloadFromMemory) {
+    await loadData(dataList);
+  }
+  if (reorderData) {
+    await orderDataOnCurrLocation(dataList, updateAllDistances);
+  }
+  updateWidget(dataList);
+  return Future.value();
+}
+
+void updateWidget(ListModel dataList) {
+  WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+    HomeWidgetConfig.initialize().then((value) async {
+      await HomeWidgetConfig.update(dataList.elem(0));
+    });
+  });
 }
 
 Future<void> orderDataOnCurrLocation(
@@ -233,14 +255,24 @@ Future<void> orderDataOnCurrLocation(
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        return;
+        return Future.value();
       }
     }
   } catch (e) {
-    return;
+    return Future.error(Exception("Could not get hold of GPS."));
   }
-  Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high);
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  double lastCloserLocation = prefs.getDouble('lastCloserLocation') ?? 0.0;
+  LocationAccuracy intelligentAccuracy =
+      computeIntelligentAccuracy(lastCloserLocation);
+  Position position;
+  try {
+    position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: intelligentAccuracy,
+        timeLimit: const Duration(seconds: 10));
+  } catch (e) {
+    return Future.value();
+  }
   for (int i = 0; i < dataList.length(); i++) {
     DataModel currCard = dataList.elem(i);
     if (!updateAllDistances && currCard.distance > 1.0) {
@@ -252,6 +284,28 @@ Future<void> orderDataOnCurrLocation(
     currCard.distance = distance.toDouble();
     dataList.updateData(currCard, i);
   }
-  // ? Sort the array based on distance but also always put to the end of the list the already seen locations
   dataList.sortData();
+  prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
+  return Future.value();
+}
+
+/// Given the [lastCloserLocation] this function will return the intelligent accuracy
+/// which is the best accuracy to use when computing the new distances
+/// to maximize power efficiency by at the same time keeping the distance values
+/// as accurate as possible, this is a trade-off between power consumption and accuracy
+/// * If the last closer location is more than 100km away, then we can use LocationAccuracy.low
+/// * If the last closer location is more than 10km away, then we can use LocationAccuracy.medium
+/// * If the last closer location is more than 1km away, then we can use LocationAccuracy.high
+/// * If the last closer location is less than 1km away, then we can use LocationAccuracy.best
+LocationAccuracy computeIntelligentAccuracy(double lastCloserLocation) {
+  if (lastCloserLocation > 100000.0) {
+    return LocationAccuracy.low;
+  }
+  if (lastCloserLocation > 10000.0) {
+    return LocationAccuracy.medium;
+  }
+  if (lastCloserLocation > 1000.0) {
+    return LocationAccuracy.high;
+  }
+  return LocationAccuracy.best;
 }

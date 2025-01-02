@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';

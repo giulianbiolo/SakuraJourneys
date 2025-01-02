@@ -2,12 +2,16 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationModel {
   final double lat;
   final double lng;
   LocationModel(this.lat, this.lng);
   static fromLatLngString(String latLng) {
+    if (latLng.trim().isEmpty) {
+      return LocationModel(0.0, 0.0);
+    }
     final latLngList = latLng
         .replaceAll(RegExp(r'[()]'), '')
         .split(",")
@@ -21,6 +25,25 @@ class LocationModel {
   String toString() {
     return "($lat, $lng)";
   }
+}
+
+(String, Color) getHumanizedDistance(double dist) {
+  if (dist < 50.0) {
+    return ("Here!", Colors.blue);
+  }
+  if (dist < 100.0) {
+    return ("< 100 m", Colors.teal);
+  }
+  if (dist < 1000.0) {
+    return ("${dist.toStringAsFixed(0)} m", Colors.green);
+  }
+  if (dist < 10000.0) {
+    return ("${(dist / 1000.0).toStringAsFixed(2)} km", Colors.orange);
+  }
+  if (dist < 100000.0) {
+    return ("${(dist / 1000.0).toStringAsFixed(1)} km", Colors.deepOrange);
+  }
+  return ("${(dist / 1000.0).toStringAsFixed(0)} km", Colors.purple);
 }
 
 class DataModel {

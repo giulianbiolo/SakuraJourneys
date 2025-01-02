@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/screens/home.dart';
 import 'package:japan_travel/utils/edit_card_form.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -83,6 +84,10 @@ class LocationCard extends StatelessWidget {
                       "dataList",
                       jsonEncode(Provider.of<ListModel>(context, listen: false)
                           .toJson()));
+                  updateCards(Provider.of<ListModel>(context, listen: false),
+                      reloadFromMemory: false,
+                      reorderData: false,
+                      updateAllDistances: false);
                   Provider.of<ListModel>(context, listen: false).notify();
                 })
               },
@@ -305,7 +310,13 @@ class LocationCard extends StatelessWidget {
                                               .toJson();
                                       prefs.setString(
                                           'dataList', jsonEncode(newCards));
-                                    }
+                                    }                                    
+                                    updateCards(
+                                        Provider.of<ListModel>(context,
+                                            listen: false),
+                                        reloadFromMemory: false,
+                                        reorderData: false,
+                                        updateAllDistances: false);
                                   }),
                                 },
                                 style: const ButtonStyle(
@@ -326,25 +337,6 @@ class LocationCard extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  (String, Color) getHumanizedDistance(double dist) {
-    if (dist < 50.0) {
-      return ("Here!", Colors.blue);
-    }
-    if (dist < 100.0) {
-      return ("< 100 m", Colors.teal);
-    }
-    if (dist < 1000.0) {
-      return ("${dist.toStringAsFixed(0)} m", Colors.green);
-    }
-    if (dist < 10000.0) {
-      return ("${(dist / 1000.0).toStringAsFixed(2)} km", Colors.orange);
-    }
-    if (dist < 100000.0) {
-      return ("${(dist / 1000.0).toStringAsFixed(1)} km", Colors.deepOrange);
-    }
-    return ("${(dist / 1000.0).toStringAsFixed(0)} km", Colors.purple);
   }
 
   Future<void> navigateTo(double lat, double lng) async {

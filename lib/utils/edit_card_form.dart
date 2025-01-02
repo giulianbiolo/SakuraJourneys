@@ -215,8 +215,8 @@ class EditCardFormState extends State<EditCardForm> {
                             "Now saving the following string:\n$newCards");
                         prefs.setString('dataList', jsonEncode(newCards));
                         // Update distance
-                        orderDataOnCurrLocation(
-                            Provider.of<ListModel>(context, listen: false), false);
+                        updateCards(
+                            Provider.of<ListModel>(context, listen: false), reloadFromMemory: false, reorderData: true, updateAllDistances: false);
                         Navigator.pop(context);
                       }
                     }
