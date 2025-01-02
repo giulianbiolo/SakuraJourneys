@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
@@ -206,12 +208,12 @@ class EditCardFormState extends State<EditCardForm> {
                       SharedPreferences prefs =
                           await SharedPreferences.getInstance();
                       if (context.mounted) {
-                        String settingString =
+                        Map<String, dynamic> newCards =
                             Provider.of<ListModel>(context, listen: false)
-                                .toString();
+                                .toJson();
                         print(
-                            "Now saving the following string:\n$settingString");
-                        prefs.setString('dataList', settingString);
+                            "Now saving the following string:\n$newCards");
+                        prefs.setString('dataList', jsonEncode(newCards));
                         // Update distance
                         orderDataOnCurrLocation(
                             Provider.of<ListModel>(context, listen: false), false);

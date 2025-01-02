@@ -32,9 +32,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     initPlatformState();
-    loadData(Provider.of<ListModel>(context, listen: false)).then((value) =>
-        orderDataOnCurrLocation(
-            Provider.of<ListModel>(context, listen: false), true));
+    loadData(Provider.of<ListModel>(context, listen: false)).then((value) => {
+          if (mounted)
+            {
+              orderDataOnCurrLocation(
+                  Provider.of<ListModel>(context, listen: false), true)
+            }
+        });
     _pageController =
         PageController(initialPage: _currentPage, viewportFraction: 0.8);
   }
@@ -45,10 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     handler.sharedMediaStream.listen((SharedMedia media) async {
       if (!mounted) return;
-      print('Received shared media: $media');
-      print(
-          'Received media.conversationIdentifier: ${media.conversationIdentifier}');
-      print('Received media.content: ${media.content}');
+      // print('Received shared media: $media');
+      // print(
+      //     'Received media.conversationIdentifier: ${media.conversationIdentifier}');
+      // print('Received media.content: ${media.content}');
 
       // ? Expect a JSON string as content -> use it to update our list
       if (media.content != null && media.content!.isNotEmpty) {
@@ -57,17 +61,20 @@ class _HomeScreenState extends State<HomeScreen> {
           Map<String, dynamic> receivedJson = jsonDecode(media.content!);
           if (receivedJson.containsKey("data") &&
               receivedJson["data"] is List) {
-            List<DataModel> receivedData = dataFromJson(receivedJson);
+            List<DataModel> receivedData = ListModel.fromJson(receivedJson);
             Provider.of<ListModel>(context, listen: false)
                 .loadData(receivedData);
             SharedPreferences prefs = await SharedPreferences.getInstance();
             if (mounted) {
-              prefs.setString('dataList',
-                  Provider.of<ListModel>(context, listen: false).toString());
+              prefs.setString(
+                  'dataList',
+                  jsonEncode(
+                      Provider.of<ListModel>(context, listen: false).toJson()));
             }
           }
         } catch (e) {
-          print("Error decoding the JSON string: $e");
+          // print("Error decoding the JSON string: $e");
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Error loading data')),
           );
@@ -86,7 +93,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Map<String, dynamic> receivedJson = jsonDecode(fileContent);
                 if (receivedJson.containsKey("data") &&
                     receivedJson["data"] is List) {
-                  List<DataModel> receivedData = dataFromJson(receivedJson);
+                  List<DataModel> receivedData =
+                      ListModel.fromJson(receivedJson);
                   if (mounted) {
                     Provider.of<ListModel>(context, listen: false)
                         .loadData(receivedData);
@@ -95,13 +103,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (mounted) {
                       prefs.setString(
                           'dataList',
-                          Provider.of<ListModel>(context, listen: false)
-                              .toString());
+                          jsonEncode(
+                              Provider.of<ListModel>(context, listen: false)
+                                  .toJson()));
                     }
                   }
                 }
               } catch (e) {
-                print("Error decoding the JSON string: $e");
+                // print("Error decoding the JSON string: $e");
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Error loading data')),
@@ -210,13 +219,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
 Future<void> loadData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  String dataString = (prefs.getString("dataList") ?? "")
-      .trim()
-      .replaceAll("\n", "")
-      .replaceAll("[", "")
-      .replaceAll("]", "");
-  print("Now loading the following string:\n$dataString");
-  List<DataModel> savedList = dataFromString(dataString);
+  String storedCards = prefs.getString("dataList") ?? emptyListModel;
+  print("Now loading the following string:\n$storedCards");
+  List<DataModel> savedList = ListModel.fromJson(jsonDecode(storedCards));
   dataList.loadData(savedList);
 }
 

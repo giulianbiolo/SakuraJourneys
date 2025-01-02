@@ -67,14 +67,14 @@ class AddFormState extends State<SettingsForm> {
                         if (receivedJson.containsKey("data") &&
                             receivedJson["data"] is List) {
                           List<DataModel> receivedData =
-                              dataFromJson(receivedJson);
+                              ListModel.fromJson(receivedJson);
                           if (context.mounted) {
                             Provider.of<ListModel>(context, listen: false)
                                 .loadData(receivedData);
                             SharedPreferences prefs =
                                 await SharedPreferences.getInstance();
                             if (context.mounted) {
-                              prefs.setString('dataList', Provider.of<ListModel>(context, listen: false).toString());
+                              prefs.setString('dataList', jsonEncode(Provider.of<ListModel>(context, listen: false).toJson()));
                               Navigator.pop(context);
                             }
                           }
@@ -165,10 +165,10 @@ class AddFormState extends State<SettingsForm> {
                           .clearAllData();
                       Provider.of<ListModel>(context, listen: false)
                           .loadData(dataListDefault);
-                      String defaultData =
+                      Map<String, dynamic> defaultData =
                           Provider.of<ListModel>(context, listen: false)
-                              .toString();
-                      prefs.setString('dataList', defaultData);
+                              .toJson();
+                      prefs.setString('dataList', jsonEncode(defaultData));
                       orderDataOnCurrLocation(
                           Provider.of<ListModel>(context, listen: false), true);
                       Provider.of<ListModel>(context, listen: false).notify();

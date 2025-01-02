@@ -37,11 +37,14 @@ class LocationCard extends StatelessWidget {
                   if (currentStatus == LocationStatus.seen.index) {
                     prefs.setInt(data.title, LocationStatus.unseen.index);
                     data.alreadySeen = false;
-                    Provider.of<ListModel>(context, listen: false)
-                        .removeData(data);
+                    if (context.mounted) {
+                      Provider.of<ListModel>(context, listen: false)
+                          .removeData(data);
+                    }
                     //context.watch<ListModel>().removeData(data);
 
                     // insert it in the correct position based on distance
+                    if (!context.mounted) return;
                     for (int i = 0;
                         i <
                             Provider.of<ListModel>(context, listen: false)
@@ -66,17 +69,20 @@ class LocationCard extends StatelessWidget {
                     }
                   } else {
                     prefs.setInt(data.title, LocationStatus.seen.index);
-                    Provider.of<ListModel>(context, listen: false)
-                        .removeData(data);
-                    data.alreadySeen = true;
-                    Provider.of<ListModel>(context, listen: false)
-                        .addData(data);
+                    if (context.mounted) {
+                      Provider.of<ListModel>(context, listen: false)
+                          .removeData(data);
+                      data.alreadySeen = true;
+                      Provider.of<ListModel>(context, listen: false)
+                          .addData(data);
+                    }
                   }
                   // ? Save data to SharedPreferences
+                  if (!context.mounted) return;
                   prefs.setString(
                       "dataList",
-                      Provider.of<ListModel>(context, listen: false)
-                          .toString());
+                      jsonEncode(Provider.of<ListModel>(context, listen: false)
+                          .toJson()));
                   Provider.of<ListModel>(context, listen: false).notify();
                 })
               },
@@ -156,19 +162,18 @@ class LocationCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-                Padding(
-                  // *** Card Title ***
-                  padding:
-                      const EdgeInsets.all(10.0),
-                  child: Text(
-                    data.title,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: data.alreadySeen ? Colors.grey : Colors.white,
-                        fontSize: 25,
-                        fontWeight: FontWeight.bold),
-                  ),
+              Padding(
+                // *** Card Title ***
+                padding: const EdgeInsets.all(10.0),
+                child: Text(
+                  data.title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: data.alreadySeen ? Colors.grey : Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold),
                 ),
+              ),
               Padding(
                 // *** Card Location & Distance Badge ***
                 padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -212,7 +217,8 @@ class LocationCard extends StatelessWidget {
               ),
               Padding(
                 // *** Description & Action Buttons For Single Card ***
-                padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0),
+                padding:
+                    const EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0),
                 child: SizedBox(
                     height: 450,
                     width: MediaQuery.of(context).size.width,
@@ -234,7 +240,6 @@ class LocationCard extends StatelessWidget {
                                 fontWeight: FontWeight.normal,
                                 textAlign: TextAlign.center,
                                 height: Height(370),
-                                
                               ),
                             },
                           ),
@@ -245,8 +250,10 @@ class LocationCard extends StatelessWidget {
                               // *** Quick Share Of Single Card ***
                               IconButton(
                                 onPressed: () async {
+                                  ListModel singleCard = ListModel();
+                                  singleCard.addData(data);
                                   Map<String, dynamic> jsonData =
-                                      ListModel.toJsonSingle(data);
+                                      singleCard.toJson();
                                   String jsonString = jsonEncode(jsonData);
                                   Share.share(jsonString);
                                 },
@@ -269,7 +276,9 @@ class LocationCard extends StatelessWidget {
                                         content: Padding(
                                           padding: const EdgeInsets.only(
                                               top: 8.0, left: 8.0, right: 8.0),
-                                          child: EditCardForm(initialCardData: data,),
+                                          child: EditCardForm(
+                                            initialCardData: data,
+                                          ),
                                         ),
                                       );
                                     },
@@ -289,11 +298,14 @@ class LocationCard extends StatelessWidget {
                                   Provider.of<ListModel>(context, listen: false)
                                       .removeData(data),
                                   SharedPreferences.getInstance().then((prefs) {
-                                    String settingString =
-                                        Provider.of<ListModel>(context,
-                                                listen: false)
-                                            .toString();
-                                    prefs.setString('dataList', settingString);
+                                    if (context.mounted) {
+                                      Map<String, dynamic> newCards =
+                                          Provider.of<ListModel>(context,
+                                                  listen: false)
+                                              .toJson();
+                                      prefs.setString(
+                                          'dataList', jsonEncode(newCards));
+                                    }
                                   }),
                                 },
                                 style: const ButtonStyle(

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,8 +13,8 @@ class LocationModel {
         .split(",")
         .map((e) => e.trim())
         .toList();
-    return LocationModel(
-        double.tryParse(latLngList[0]) ?? 0.0, double.tryParse(latLngList[1]) ?? 0.0);
+    return LocationModel(double.tryParse(latLngList[0]) ?? 0.0,
+        double.tryParse(latLngList[1]) ?? 0.0);
   }
 
   @override
@@ -39,9 +41,27 @@ class DataModel {
     this.rating,
   );
 
-  @override
-  String toString() {
-    return "$title|:|$imageName|:|$address|:|$location|:|$alreadySeen|:|$description|:|$rating";
+  Map<String, dynamic> toJson() {
+    return {
+      "title": title,
+      "imageName": imageName,
+      "address": address,
+      "location": location.toString(),
+      "description": description,
+      "rating": rating.toString(),
+      "alreadySeen": alreadySeen ? "true" : "false",
+    };
+  }
+
+  static DataModel fromJson(Map<String, dynamic> jsonData) {
+    return DataModel(
+      jsonData["title"],
+      jsonData["imageName"],
+      jsonData["address"],
+      LocationModel.fromLatLngString(jsonData["location"]),
+      jsonData["description"],
+      double.parse(jsonData["rating"]),
+    )..alreadySeen = jsonData["alreadySeen"] == "true";
   }
 }
 
@@ -127,88 +147,28 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
   @override
   void reassemble() {}
 
-  @override
-  String toString() {
-    String result = "";
-    for (DataModel data in _data) {
-      result += "$data|;|";
-    }
-    return result;
-  }
-
   Map<String, dynamic> toJson() {
     Map<String, dynamic> jsonData = {
       "data": [],
     };
     for (DataModel data in _data) {
-      jsonData["data"].add({
-        "title": data.title,
-        "imageName": data.imageName,
-        "address": data.address,
-        "location": data.location.toString(),
-        "description": data.description,
-        "rating": data.rating.toString(),
-        "alreadySeen": data.alreadySeen ? "true" : "false",
-      });
+      jsonData["data"].add(data.toJson());
     }
     return jsonData;
   }
 
-  static Map<String, dynamic> toJsonSingle(DataModel data) {
-    return {
-      "data": [
-        {
-          "title": data.title,
-          "imageName": data.imageName,
-          "address": data.address,
-          "location": data.location.toString(),
-          "description": data.description,
-          "rating": data.rating.toString(),
-          "alreadySeen": data.alreadySeen ? "true" : "false",
-        }
-      ]
-    };
-  }
-}
-
-List<DataModel> dataFromString(String datastr) {
-  List<DataModel> listModel = [];
-  List<String> dataList = datastr.split("|;|");
-  for (String data in dataList) {
-    List<String> dataFields = data.split("|:|");
-    if (dataFields.length != 7) {
-      continue;
+  static fromJson(Map<String, dynamic> jsonData) {
+    List<DataModel> listModel = [];
+    for (Map<String, dynamic> model in jsonData["data"]) {
+      listModel.add(DataModel.fromJson(model));
     }
-    listModel.add(DataModel(
-      dataFields[0],
-      dataFields[1],
-      dataFields[2],
-      LocationModel.fromLatLngString(dataFields[3]),
-      dataFields[5],
-      double.parse(dataFields[6]),
-    ));
-    listModel.last.alreadySeen = dataFields[4] == "true";
+    return listModel;
   }
-  return listModel;
-}
-
-List<DataModel> dataFromJson(Map<String, dynamic> jsonData) {
-  List<DataModel> listModel = [];
-  for (Map<String, dynamic> data in jsonData["data"]) {
-    listModel.add(DataModel(
-      data["title"],
-      data["imageName"],
-      data["address"],
-      LocationModel.fromLatLngString(data["location"]),
-      data["description"],
-      double.parse(data["rating"]),
-    ));
-    listModel.last.alreadySeen = data["alreadySeen"] == "true";
-  }
-  return listModel;
 }
 
 enum LocationStatus { unseen, seen }
+
+String emptyListModel = jsonEncode({"data": []});
 
 String urlTo404Page =
     "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/404page.jpg?raw=true";
