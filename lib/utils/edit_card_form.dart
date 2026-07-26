@@ -132,9 +132,7 @@ class EditCardFormState extends State<EditCardForm> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter some text';
                   }
-                  try {
-                    LocationModel.fromLatLngString(value);
-                  } catch (e) {
+                  if (LocationModel.tryFromLatLngString(value) == null) {
                     return 'Please enter: (lat, lng) in decimal base notation';
                   }
                   return null;
@@ -195,10 +193,13 @@ class EditCardFormState extends State<EditCardForm> {
                         titleText.text,
                         imageUrlText.text,
                         addressText.text,
-                        LocationModel.fromLatLngString(latLngText.text),
+                        LocationModel.tryFromLatLngString(latLngText.text)!,
                         descriptionText.text,
                         double.parse(ratingText.text),
                       );
+                      // ? DataModel defaults alreadySeen to false, so without this
+                      // ? any edit to a seen card silently marks it unseen again.
+                      newCardData.alreadySeen = oldCardData.alreadySeen;
                       Provider.of<ListModel>(context, listen: false)
                           .removeData(oldCardData);
                       Provider.of<ListModel>(context, listen: false)

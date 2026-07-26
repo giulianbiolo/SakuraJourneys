@@ -27,89 +27,96 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
   late IndicatorController _indicatorController;
-  final int _currentPage = 0;
-  SharedMedia? media;
+  // ? An import that lands mid-boot would otherwise be overwritten by the load it
+  // ? races: loadData reads the pref into the same model the import just extended.
+  late Future<void> _boot;
 
   @override
   void initState() {
     super.initState();
+    _boot = updateCards(Provider.of<ListModel>(context, listen: false))
+        .catchError((Object e) => debugPrint('Initial load failed: $e'));
     initPlatformState();
-    updateCards(Provider.of<ListModel>(context, listen: false));
-    _pageController =
-        PageController(initialPage: _currentPage, viewportFraction: 0.8);
+    _pageController = PageController(viewportFraction: 0.8);
     _indicatorController = IndicatorController();
   }
 
   Future<void> initPlatformState() async {
     final handler = ShareHandlerPlatform.instance;
-    media = await handler.getInitialSharedMedia();
+    // ? listen() must run before the first await: the plugin already handled the
+    // ? launch intent while its eventSink was null, so that event was dropped and
+    // ? getInitialSharedMedia() is the only way to see a cold-start share.
+    handler.sharedMediaStream.listen(_handleSharedMedia);
+    final SharedMedia? initial = await handler.getInitialSharedMedia();
+    if (initial != null) {
+      await _handleSharedMedia(initial);
+      await handler.resetInitialSharedMedia();
+    }
+  }
 
-    handler.sharedMediaStream.listen((SharedMedia media) async {
-      if (!mounted) return;
-      // ? Expect a JSON string as content -> use it to update our list
-      if (media.content != null && media.content!.isNotEmpty) {
-        // check for the content to start with: {"data": [{"title":
-        try {
-          Map<String, dynamic> receivedJson = jsonDecode(media.content!);
-          if (receivedJson.containsKey("data") &&
-              receivedJson["data"] is List) {
-            List<DataModel> receivedData = dataFromJson(receivedJson);
-            Provider.of<ListModel>(context, listen: false)
-                .loadData(receivedData);
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            if (mounted) {
-              prefs.setString('dataList',
-                  Provider.of<ListModel>(context, listen: false).toString());
-            }
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Error loading data')),
-            );
-          }
-        }
-      } else {
-        if (media.attachments != null && media.attachments!.isNotEmpty) {
-          for (int i = 0; i < media.attachments!.length; i++) {
-            SharedAttachment attachment = media.attachments![i]!;
-            if (attachment.type == SharedAttachmentType.file &&
-                (attachment.path.endsWith(".json") ||
-                    attachment.path.endsWith(".txt") ||
-                    attachment.path.endsWith(".md"))) {
-              File file = File(attachment.path);
-              String fileContent = await file.readAsString();
-              try {
-                Map<String, dynamic> receivedJson = jsonDecode(fileContent);
-                if (receivedJson.containsKey("data") &&
-                    receivedJson["data"] is List) {
-                  List<DataModel> receivedData = dataFromJson(receivedJson);
-                  if (mounted) {
-                    Provider.of<ListModel>(context, listen: false)
-                        .loadData(receivedData);
-                    SharedPreferences prefs =
-                        await SharedPreferences.getInstance();
-                    if (mounted) {
-                      prefs.setString(
-                          'dataList',
-                          Provider.of<ListModel>(context, listen: false)
-                              .toString());
-                    }
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Error loading data')),
-                  );
-                }
-              }
-            }
-          }
-        }
-      }
-    });
+  Future<void> _handleSharedMedia(SharedMedia media) async {
+    await _boot;
     if (!mounted) return;
+    // ? Expect a JSON string as content, or a JSON-ish file attachment.
+    String? payload = media.content;
+    if (payload == null || payload.isEmpty) {
+      payload = await _readSharedJsonFile(media);
+    }
+    if (payload == null || payload.isEmpty) return;
+    await _importJson(payload);
+  }
+
+  Future<String?> _readSharedJsonFile(SharedMedia media) async {
+    for (final SharedAttachment? attachment
+        in media.attachments ?? const <SharedAttachment?>[]) {
+      if (attachment == null) continue;
+      if (attachment.type != SharedAttachmentType.file) continue;
+      if (!attachment.path.endsWith(".json") &&
+          !attachment.path.endsWith(".txt") &&
+          !attachment.path.endsWith(".md")) {
+        continue;
+      }
+      try {
+        return await File(attachment.path).readAsString();
+      } catch (e) {
+        // ? Unreadable path or revoked permission: try the next attachment.
+        debugPrint('Could not read shared file ${attachment.path}: $e');
+        continue;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _importJson(String raw) async {
+    List<DataModel> receivedData;
+    try {
+      Map<String, dynamic> receivedJson = jsonDecode(raw);
+      if (!receivedJson.containsKey("data") || receivedJson["data"] is! List) {
+        throw const FormatException('missing "data" list');
+      }
+      receivedData = dataFromJson(receivedJson);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error loading data')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    ListModel model = Provider.of<ListModel>(context, listen: false);
+    model.loadData(receivedData);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('dataList', model.toString());
+    try {
+      await updateCards(model,
+          reloadFromMemory: false,
+          reorderData: true,
+          updateAllDistances: false);
+    } catch (e) {
+      // ? A failed GPS fix is not an import failure; the cards are already saved.
+      debugPrint('Distance refresh after import failed: $e');
+    }
   }
 
   @override
@@ -130,7 +137,8 @@ class _HomeScreenState extends State<HomeScreen> {
             try {
               await updateCards(Provider.of<ListModel>(context, listen: false));
             } catch (e) {
-              throw Exception("Error in updateCards() method");
+              // ? The indicator only shows an error state, so keep the cause.
+              rethrow;
             }
           } else {
             throw Exception("Context is not mounted");
@@ -178,6 +186,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return SingleChildScrollView(
           dragStartBehavior: DragStartBehavior.down,
           primary: true,
+          // ? The card is intrinsically sized now, so a short description can leave it
+          // ? smaller than the viewport; without this, pull-to-refresh dies with it.
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -185,13 +196,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                   height:
                       75), // ? Padding (Cannot use the padding property otherwise it would clip the top of the card when scrolling)
-              Container(
-                height: 1190.0,
-                alignment: Alignment.center,
-                //transform: Matrix4.translationValues(0.0, 50.0, 0.0),
-                child:
-                    LocationCard(data: context.watch<ListModel>().elem(index)),
-              ),
+              // ? Height comes from the card itself: a fixed slot either clipped the
+              // ? description or left a gap, depending on the screen.
+              LocationCard(data: context.watch<ListModel>().elem(index)),
               Container(
                   height:
                       25), // ? Padding (Cannot use the padding property otherwise it would clip the bottom of the card when scrolling)
@@ -211,33 +218,48 @@ Future<void> updateCards(ListModel dataList,
     await loadData(dataList);
   }
   if (reorderData) {
-    await orderDataOnCurrLocation(dataList, updateAllDistances);
+    // ? Distances are never persisted, so without a fix they are all 0.0 and the
+    // ? widget would label an arbitrary card "Here!". Keep the last good write.
+    if (!await orderDataOnCurrLocation(dataList, updateAllDistances)) {
+      return Future.value();
+    }
   }
-  updateWidget(dataList);
+  await updateWidget(dataList);
   return Future.value();
 }
 
-void updateWidget(ListModel dataList) {
-  WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-    HomeWidgetConfig.initialize().then((value) async {
-      await HomeWidgetConfig.update(dataList.elem(0));
-    });
-  });
+// ? Deliberately not deferred to a post-frame callback: the workmanager isolate
+// ? never builds a frame, so the callback would be queued there and never run.
+Future<void> updateWidget(ListModel dataList) async {
+  await HomeWidgetConfig.initialize();
+  if (dataList.length() == 0) {
+    // ? Deleting the last card is the only way here, and elem(0) would throw.
+    await HomeWidgetConfig.updateEmpty();
+    return;
+  }
+  await HomeWidgetConfig.update(dataList.elem(0));
 }
 
-Future<void> orderDataOnCurrLocation(
+/// Returns whether a position fix was obtained and the distances updated.
+Future<bool> orderDataOnCurrLocation(
     ListModel dataList, bool updateAllDistances) async {
+  LocationPermission permission;
   try {
-    LocationPermission permission = await Geolocator.checkPermission();
+    permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return Future.value();
-      }
     }
   } catch (e) {
-    return Future.error(Exception("Could not get hold of GPS."));
+    // ? Reported, not thrown: a headless isolate has no activity to attach a
+    // ? permission request to, and throwing makes workmanager retry with backoff.
+    debugPrint('Location permission check failed: $e');
+    return false;
+  }
+  // ? Covers deniedForever from the initial check and unableToDetermine, both of
+  // ? which would otherwise fall through to a getCurrentPosition that always fails.
+  if (permission != LocationPermission.always &&
+      permission != LocationPermission.whileInUse) {
+    return false;
   }
   SharedPreferences prefs = await SharedPreferences.getInstance();
   double lastCloserLocation = prefs.getDouble('lastCloserLocation') ?? 0.0;
@@ -246,10 +268,11 @@ Future<void> orderDataOnCurrLocation(
   Position position;
   try {
     position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: intelligentAccuracy,
-        timeLimit: const Duration(seconds: 10));
+        locationSettings: LocationSettings(
+            accuracy: intelligentAccuracy,
+            timeLimit: const Duration(seconds: 10)));
   } catch (e) {
-    return Future.value();
+    return false;
   }
   for (int i = 0; i < dataList.length(); i++) {
     DataModel currCard = dataList.elem(i);
@@ -259,12 +282,15 @@ Future<void> orderDataOnCurrLocation(
     LatLng p1 = LatLng(position.latitude, position.longitude);
     LatLng p2 = LatLng(currCard.location.lat, currCard.location.lng);
     num distance = computeDistanceBetween(p1, p2, radius: 6371008.8);
+    // ? currCard is _data[i] itself, so updateData would only re-notify: one full
+    // ? carousel rebuild per card. sortData() below notifies once for the batch.
     currCard.distance = distance.toDouble();
-    dataList.updateData(currCard, i);
   }
   dataList.sortData();
-  prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
-  return Future.value();
+  if (dataList.length() > 0) {
+    prefs.setDouble('lastCloserLocation', dataList.elem(0).distance);
+  }
+  return true;
 }
 
 /// Given the [lastCloserLocation] this function will return the intelligent accuracy

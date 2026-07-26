@@ -124,9 +124,7 @@ class AddFormState extends State<AddForm> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter some text';
                   }
-                  try {
-                    LocationModel.fromLatLngString(value);
-                  } catch (e) {
+                  if (LocationModel.tryFromLatLngString(value) == null) {
                     return 'Please enter: (lat, lng) in decimal base notation';
                   }
                   return null;
@@ -167,26 +165,34 @@ class AddFormState extends State<AddForm> {
                       type: FileType.custom,
                       allowedExtensions: ['json'],
                     );
-                    if (result != null) {
-                      File file = File(result.files.single.path!);
-                      String fileContent = await file.readAsString();
+                    if (result == null) return;
+                    File file = File(result.files.single.path!);
+                    String fileContent = await file.readAsString();
+                    if (!context.mounted) return;
+                    try {
                       Map<String, dynamic> loadedData = jsonDecode(fileContent);
-                      try {
-                        List<DataModel> dataList = dataFromJson(loadedData);
-                        if (context.mounted) {
-                          Provider.of<ListModel>(context, listen: false).loadData(dataList);
-                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                          prefs.setString('dataList', fileContent);
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Error loading data')),
-                          );
-                        }
+                      if (!loadedData.containsKey("data") ||
+                          loadedData["data"] is! List) {
+                        throw const FormatException('missing "data" list');
+                      }
+                      List<DataModel> dataList = dataFromJson(loadedData);
+                      ListModel model =
+                          Provider.of<ListModel>(context, listen: false);
+                      model.loadData(dataList);
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      if (!context.mounted) return;
+                      prefs.setString('dataList', model.toString());
+                      updateCards(model,
+                          reloadFromMemory: false,
+                          reorderData: true,
+                          updateAllDistances: false);
+                      Navigator.pop(context);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Error loading data')),
+                        );
                       }
                     }
                   },
@@ -222,7 +228,7 @@ class AddFormState extends State<AddForm> {
                             titleText.text,
                             imageUrlText.text,
                             addressText.text,
-                            LocationModel.fromLatLngString(latLngText.text),
+                            LocationModel.tryFromLatLngString(latLngText.text)!,
                             descriptionText.text,
                             double.parse(ratingText.text),
                           );
@@ -235,7 +241,8 @@ class AddFormState extends State<AddForm> {
                                 Provider.of<ListModel>(context, listen: false)
                                     .toString();
                             prefs.setString('dataList',settingString);
-                            updateCards(Provider.of<ListModel>(context, listen: false), reloadFromMemory: false, reorderData: false, updateAllDistances: false);
+                            // ? reorderData: a new card starts at distance 0.0, which renders as "Here!" and sorts first.
+                            updateCards(Provider.of<ListModel>(context, listen: false), reloadFromMemory: false, reorderData: true, updateAllDistances: false);
                             Navigator.pop(context);
                           }
                         }

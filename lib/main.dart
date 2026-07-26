@@ -39,7 +39,7 @@ void main() async {
       overlays: [SystemUiOverlay.bottom]);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  Workmanager().initialize(callbackDispatcher);
   Workmanager().registerPeriodicTask(
     "update-home-widget-geo-distance",
     "updateHomeWidgetGeoDistance",

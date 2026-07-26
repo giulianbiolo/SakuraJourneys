@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationModel {
   final double lat;
   final double lng;
   LocationModel(this.lat, this.lng);
-  static fromLatLngString(String latLng) {
-    if (latLng.trim().isEmpty) {
-      return LocationModel(0.0, 0.0);
-    }
-    final latLngList = latLng
-        .replaceAll(RegExp(r'[()]'), '')
-        .split(",")
-        .map((e) => e.trim())
-        .toList();
-    return LocationModel(
-        double.tryParse(latLngList[0]) ?? 0.0, double.tryParse(latLngList[1]) ?? 0.0);
+  // ? Returns null for anything that is not a parseable "(lat, lng)" pair, so
+  // ? callers can skip the record instead of silently placing a card at (0, 0).
+  static LocationModel? tryFromLatLngString(Object? latLng) {
+    if (latLng is! String) return null;
+    final List<String> latLngList =
+        latLng.replaceAll(RegExp(r'[()]'), '').split(",");
+    if (latLngList.length != 2) return null;
+    final double? lat = double.tryParse(latLngList[0].trim());
+    final double? lng = double.tryParse(latLngList[1].trim());
+    if (lat == null || lng == null) return null;
+    if (lat.abs() > 90.0 || lng.abs() > 180.0) return null;
+    return LocationModel(lat, lng);
   }
 
   @override
@@ -62,6 +62,14 @@ class DataModel {
     this.rating,
   );
 
+  DataModel copy() {
+    DataModel copied =
+        DataModel(title, imageName, address, location, description, rating);
+    copied.distance = distance;
+    copied.alreadySeen = alreadySeen;
+    return copied;
+  }
+
   @override
   String toString() {
     return "$title|:|$imageName|:|$address|:|$location|:|$alreadySeen|:|$description|:|$rating";
@@ -72,7 +80,7 @@ const int maxTitleLength = 25;
 const int maxDescriptionLength = 650;
 const int maxAddressLength = 35;
 
-class ListModel extends ChangeNotifier implements ReassembleHandler {
+class ListModel extends ChangeNotifier {
   final List<DataModel> _data = [];
   void addData(DataModel data) {
     _data.add(data);
@@ -148,9 +156,6 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
   }
 
   @override
-  void reassemble() {}
-
-  @override
   String toString() {
     String result = "";
     for (DataModel data in _data) {
@@ -196,15 +201,11 @@ class ListModel extends ChangeNotifier implements ReassembleHandler {
 
 Future<void> loadData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  String dataString = (prefs.getString("dataList") ?? "")
-      .trim()
-      .replaceAll("\n", "")
-      .replaceAll("[", "")
-      .replaceAll("]", "");
+  String dataString = (prefs.getString("dataList") ?? "").trim();
   List<DataModel> savedList = dataFromString(dataString);
   dataList.loadData(savedList);
   if (dataList.length() == 0) {
-    dataList.loadData(dataListDefault);
+    dataList.loadData(dataListDefault());
   }
 }
 
@@ -216,13 +217,17 @@ List<DataModel> dataFromString(String datastr) {
     if (dataFields.length != 7) {
       continue;
     }
+    LocationModel? location = LocationModel.tryFromLatLngString(dataFields[3]);
+    if (location == null) {
+      continue;
+    }
     listModel.add(DataModel(
       dataFields[0],
       dataFields[1],
       dataFields[2],
-      LocationModel.fromLatLngString(dataFields[3]),
+      location,
       dataFields[5],
-      double.parse(dataFields[6]),
+      double.tryParse(dataFields[6].trim()) ?? 0.0,
     ));
     listModel.last.alreadySeen = dataFields[4] == "true";
   }
@@ -231,26 +236,52 @@ List<DataModel> dataFromString(String datastr) {
 
 List<DataModel> dataFromJson(Map<String, dynamic> jsonData) {
   List<DataModel> listModel = [];
-  for (Map<String, dynamic> data in jsonData["data"]) {
-    listModel.add(DataModel(
-      data["title"],
-      data["imageName"],
-      data["address"],
-      LocationModel.fromLatLngString(data["location"]),
-      data["description"],
-      double.parse(data["rating"]),
-    ));
-    listModel.last.alreadySeen = data["alreadySeen"] == "true";
+  Object? records = jsonData["data"];
+  if (records is! List) {
+    return listModel;
+  }
+  // ? Third-party JSON is not guaranteed to use the types toJson() writes, so
+  // ? every field is read defensively and an unusable record is skipped.
+  for (Object? record in records) {
+    if (record is! Map) {
+      continue;
+    }
+    Object? title = record["title"];
+    LocationModel? location =
+        LocationModel.tryFromLatLngString(record["location"]);
+    if (title is! String || title.isEmpty || location == null) {
+      continue;
+    }
+    DataModel data = DataModel(
+      title,
+      record["imageName"] is String ? record["imageName"] : urlTo404Page,
+      record["address"] is String ? record["address"] : "",
+      location,
+      record["description"] is String ? record["description"] : "",
+      _ratingFromJson(record["rating"]),
+    );
+    data.alreadySeen =
+        record["alreadySeen"] == "true" || record["alreadySeen"] == true;
+    listModel.add(data);
   }
   return listModel;
 }
 
-enum LocationStatus { unseen, seen }
+double _ratingFromJson(Object? rating) {
+  if (rating is num) return rating.toDouble();
+  if (rating is String) return double.tryParse(rating.trim()) ?? 0.0;
+  return 0.0;
+}
 
 String urlTo404Page =
     "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/404page.jpg?raw=true";
 
-List<DataModel> dataListDefault = [
+// ? Hands out copies: the model stores the instances it is given and mutates
+// ? distance/alreadySeen, so sharing the template would accumulate state across resets.
+List<DataModel> dataListDefault() =>
+    _dataListDefaultTemplate.map((d) => d.copy()).toList();
+
+final List<DataModel> _dataListDefaultTemplate = [
   /*
    * DataModel(
     * String title,            [Tokyo Sky Tree]

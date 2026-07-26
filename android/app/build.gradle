@@ -29,8 +29,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
@@ -53,13 +53,12 @@ android {
     }
 }
 
-flutter {
-    source = "../.."
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
 }
 
-// * Added to fix a dependency issue with the AndroidX WorkManager
-configurations {
-    all {
-        exclude group: 'androidx.work', module: 'work-runtime-ktx'
-    }
+flutter {
+    source = "../.."
 }

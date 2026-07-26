@@ -19,9 +19,12 @@ class LocationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Expanded(
-          flex: 1,
+        SizedBox(
+          // ? The one measured height left on the card: everything below it sizes to
+          // ? its content, so the image is what fixes the card's proportions.
+          height: MediaQuery.of(context).size.height * 0.7,
           child: Padding(
             padding: const EdgeInsets.all(10.0),
             child: GestureDetector(
@@ -29,62 +32,8 @@ class LocationCard extends StatelessWidget {
                 HapticFeedback.mediumImpact();
                 navigateTo(data.location.lat, data.location.lng);
               },
-              onLongPress: () => {
-                // ? Here we set the card as a "already seen" location
-                HapticFeedback.mediumImpact(),
-                SharedPreferences.getInstance().then((prefs) {
-                  // we want a toggle behaviour
-                  int currentStatus = prefs.getInt(data.title) ?? 0;
-                  if (currentStatus == LocationStatus.seen.index) {
-                    prefs.setInt(data.title, LocationStatus.unseen.index);
-                    data.alreadySeen = false;
-                    Provider.of<ListModel>(context, listen: false)
-                        .removeData(data);
-                    //context.watch<ListModel>().removeData(data);
-
-                    // insert it in the correct position based on distance
-                    for (int i = 0;
-                        i <
-                            Provider.of<ListModel>(context, listen: false)
-                                .length();
-                        i++) {
-                      if (Provider.of<ListModel>(context, listen: false)
-                              .elem(i)
-                              .alreadySeen ||
-                          data.distance <
-                              Provider.of<ListModel>(context, listen: false)
-                                  .elem(i)
-                                  .distance) {
-                        Provider.of<ListModel>(context, listen: false)
-                            .insertData(data, i);
-                        break;
-                      }
-                    }
-                    if (!Provider.of<ListModel>(context, listen: false)
-                        .contains(data)) {
-                      Provider.of<ListModel>(context, listen: false)
-                          .addData(data);
-                    }
-                  } else {
-                    prefs.setInt(data.title, LocationStatus.seen.index);
-                    Provider.of<ListModel>(context, listen: false)
-                        .removeData(data);
-                    data.alreadySeen = true;
-                    Provider.of<ListModel>(context, listen: false)
-                        .addData(data);
-                  }
-                  // ? Save data to SharedPreferences
-                  prefs.setString(
-                      "dataList",
-                      Provider.of<ListModel>(context, listen: false)
-                          .toString());
-                  updateCards(Provider.of<ListModel>(context, listen: false),
-                      reloadFromMemory: false,
-                      reorderData: false,
-                      updateAllDistances: false);
-                  Provider.of<ListModel>(context, listen: false).notify();
-                })
-              },
+              // ? Here we set the card as a "already seen" location
+              onLongPress: () => _toggleSeen(context),
               child: Hero(
                 tag: data.imageName,
                 child: CachedNetworkImage(
@@ -156,8 +105,8 @@ class LocationCard extends StatelessWidget {
             minHeight: 15,
           ),
         ),
-        Expanded(
-          flex: 0,
+        SizedBox(
+          width: double.infinity,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -219,7 +168,6 @@ class LocationCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0),
                 child: SizedBox(
-                    height: 450,
                     width: MediaQuery.of(context).size.width,
                     child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -227,9 +175,7 @@ class LocationCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Html(
-                            data: data.description.length > maxDescriptionLength
-                                ? "<p>${data.description.substring(0, maxDescriptionLength)}...</p>"
-                                : "<p>${data.description}</p>",
+                            data: _descriptionHtml(),
                             style: {
                               "p": Style(
                                 color: data.alreadySeen
@@ -238,7 +184,6 @@ class LocationCard extends StatelessWidget {
                                 fontSize: FontSize(14),
                                 fontWeight: FontWeight.normal,
                                 textAlign: TextAlign.center,
-                                height: Height(370),
                               ),
                             },
                           ),
@@ -290,24 +235,7 @@ class LocationCard extends StatelessWidget {
 
                               // *** Delete Of Single Card ***
                               IconButton(
-                                onPressed: () => {
-                                  // ? Remove the card
-                                  Provider.of<ListModel>(context, listen: false)
-                                      .removeData(data),
-                                  SharedPreferences.getInstance().then((prefs) {
-                                    String settingString =
-                                        Provider.of<ListModel>(context,
-                                                listen: false)
-                                            .toString();
-                                    prefs.setString('dataList', settingString);
-                                    updateCards(
-                                        Provider.of<ListModel>(context,
-                                            listen: false),
-                                        reloadFromMemory: false,
-                                        reorderData: false,
-                                        updateAllDistances: false);
-                                  }),
-                                },
+                                onPressed: () => _delete(context),
                                 style: const ButtonStyle(
                                     backgroundColor: WidgetStatePropertyAll(
                                         Color.fromARGB(25, 255, 0, 0))),
@@ -326,6 +254,54 @@ class LocationCard extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  // ? Escaped rather than interpolated raw: flutter_html parses a description
+  // ? containing "<" as markup and drops the text after it. Truncating first
+  // ? keeps the cut away from the entities this introduces.
+  String _descriptionHtml() {
+    String body = data.description.length > maxDescriptionLength
+        ? "${data.description.substring(0, maxDescriptionLength)}..."
+        : data.description;
+    return "<p>${htmlEscape.convert(body)}</p>";
+  }
+
+  // ? Branches on the state the UI is rendering, not on a per-title prefs key:
+  // ? alreadySeen is already persisted inside dataList, so a second store could
+  // ? only disagree with it (a card imported as seen had no key at all).
+  void _toggleSeen(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    ListModel model = Provider.of<ListModel>(context, listen: false);
+    model.removeData(data);
+    data.alreadySeen = !data.alreadySeen;
+    if (data.alreadySeen) {
+      model.addData(data); // ? Seen cards go to the end
+    } else {
+      // ? Back in, at the right position for its distance
+      int insertAt = model.length();
+      for (int i = 0; i < model.length(); i++) {
+        if (model.elem(i).alreadySeen ||
+            data.distance < model.elem(i).distance) {
+          insertAt = i;
+          break;
+        }
+      }
+      model.insertData(data, insertAt);
+    }
+    _persist(model);
+  }
+
+  void _delete(BuildContext context) {
+    ListModel model = Provider.of<ListModel>(context, listen: false);
+    model.removeData(data);
+    _persist(model);
+  }
+
+  Future<void> _persist(ListModel model) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('dataList', model.toString());
+    await updateCards(model,
+        reloadFromMemory: false, reorderData: false, updateAllDistances: false);
   }
 
   Future<void> navigateTo(double lat, double lng) async {
