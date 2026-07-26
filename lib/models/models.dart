@@ -92,7 +92,10 @@ double distanceBetween(LocationModel from, LocationModel to) {
 
 class DataModel {
   final String title;
-  final String imageName;
+  // ? Empty means "no image chosen", which is what makes the card eligible for
+  // ? lookupImage. Not final: that lookup writes the URL it found back here.
+  String imageName;
+  String imageCredit = '';
   final String address;
   final LocationModel location;
   double? distance;
@@ -113,6 +116,7 @@ class DataModel {
         DataModel(title, imageName, address, location, description, rating);
     copied.distance = distance;
     copied.alreadySeen = alreadySeen;
+    copied.imageCredit = imageCredit;
     return copied;
   }
 
@@ -120,6 +124,7 @@ class DataModel {
     return {
       "title": title,
       "imageName": imageName,
+      "imageCredit": imageCredit,
       "address": address,
       "location": location.toString(),
       "description": description,
@@ -138,7 +143,7 @@ class DataModel {
     if (title is! String || title.isEmpty || location == null) return null;
     DataModel data = DataModel(
       title,
-      record["imageName"] is String ? record["imageName"] : urlTo404Page,
+      normaliseImageName(record["imageName"]),
       record["address"] is String ? record["address"] : "",
       location,
       record["description"] is String ? record["description"] : "",
@@ -146,8 +151,20 @@ class DataModel {
     );
     data.alreadySeen =
         record["alreadySeen"] == "true" || record["alreadySeen"] == true;
+    if (record["imageCredit"] is String) {
+      data.imageCredit = record["imageCredit"] as String;
+    }
     return data;
   }
+}
+
+/// A card with no image stores the empty string. Installs from before the image
+/// lookup stored the 404 page URL instead, and those cards must become eligible
+/// for a real photo rather than keeping the placeholder forever.
+String normaliseImageName(Object? stored) {
+  if (stored is! String) return "";
+  String trimmed = stored.trim();
+  return trimmed == urlTo404Page ? "" : trimmed;
 }
 
 // ? The deck's one ordering rule, shared by sortData and the re-insertion in
@@ -268,6 +285,17 @@ class ListModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Writes back what a lookup found. The card is matched by identity, so a deck
+  /// that was reloaded or emptied while the lookup was in flight discards the
+  /// result instead of pinning it on whatever card now sits at that index.
+  bool applyImage(DataModel card, String url, String credit) {
+    if (!_data.contains(card)) return false;
+    card.imageName = url;
+    card.imageCredit = credit;
+    notifyListeners();
+    return true;
+  }
+
   Map<String, dynamic> toJson() {
     return {
       "data": [for (DataModel data in _data) data.toJson()],
@@ -374,7 +402,7 @@ List<DataModel> dataFromLegacyString(String datastr) {
     }
     listModel.add(DataModel(
       dataFields[0],
-      dataFields[1],
+      normaliseImageName(dataFields[1]),
       dataFields[2],
       location,
       dataFields[5],
@@ -413,7 +441,7 @@ List<DataModel> dataFromTakeoutJson(Map<String, dynamic> jsonData) {
     if (name is! String || name.isEmpty) continue;
     cards.add(DataModel(
       name,
-      urlTo404Page, // ? Takeout carries no photo; the card is editable afterwards
+      "", // ? Takeout carries no photo, so every card here needs one looked up
       place["address"] is String ? place["address"] as String : "",
       location,
       "",
@@ -450,6 +478,10 @@ double _ratingFromJson(Object? rating) {
 
 String urlTo404Page =
     "https://github.com/giulianbiolo/SakuraJourneys/blob/main/assets/404page.jpg?raw=true";
+
+// ? Bundled, unlike urlTo404Page, so a card whose lookup found nothing still
+// ? shows something on a device with no network.
+const String placeholderImageAsset = "assets/404page.jpg";
 
 // ? Hands out copies: the model stores the instances it is given and mutates
 // ? distance/alreadySeen, so sharing the template would accumulate state across resets.

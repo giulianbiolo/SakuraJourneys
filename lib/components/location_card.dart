@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:japan_travel/screens/home.dart';
 import 'package:japan_travel/utils/edit_card_form.dart';
+import 'package:japan_travel/utils/image_lookup.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,60 +35,33 @@ class LocationCard extends StatelessWidget {
               },
               // ? Here we set the card as a "already seen" location
               onLongPress: () => _toggleSeen(context),
+              // ? Two cards with no image of their own would share a tag if this
+              // ? were the URL alone, which is an assertion the moment anything
+              // ? pushes a route.
               child: Hero(
-                tag: data.imageName,
-                child: CachedNetworkImage(
-                  errorWidget: (context, url, error) => Container(
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30),
-                        color: Colors.white,
-                        image: DecorationImage(
-                            image: Image.network(
-                              urlTo404Page,
-                              fit: BoxFit.cover,
-                            ).image,
-                            fit: BoxFit.cover,
-                            colorFilter: data.alreadySeen
-                                ? ColorFilter.mode(
-                                    Colors.black.withOpacity(0.6),
-                                    BlendMode.darken)
-                                : null),
-                        boxShadow: const [
-                          BoxShadow(
-                            offset: Offset(0, 0),
-                            blurRadius: 6,
-                            color: Colors.white30,
-                          )
-                        ]),
-                  ),
-                  imageUrl: data.imageName,
-                  imageBuilder: (context, imageProvider) => Container(
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(30),
-                        color: Colors.white,
-                        image: DecorationImage(
-                            image: imageProvider,
-                            fit: BoxFit.cover,
-                            colorFilter: data.alreadySeen
-                                ? ColorFilter.mode(
-                                    Colors.black.withOpacity(0.6),
-                                    BlendMode.darken)
-                                : null),
-                        boxShadow: const [
-                          BoxShadow(
-                            offset: Offset(0, 0),
-                            blurRadius: 6,
-                            color: Colors.white30,
-                          )
-                        ]),
-                  ),
-                  placeholder: (context, url) =>
-                      const Center(child: CircularProgressIndicator()),
-                ),
+                tag: "${data.title}|${data.imageName}",
+                child: _image(),
               ),
             ),
           ),
         ),
+        if (data.imageCredit.isNotEmpty)
+          Padding(
+            // ******* Image Credit *******
+            // ? Wikipedia lead images are Commons files, and their licences ask
+            // ? for the author to be named wherever the photo is shown.
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: Text(
+                data.imageCredit,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: const TextStyle(color: Colors.white38, fontSize: 10),
+              ),
+            ),
+          ),
         Padding(
           // ******* Rating Indicator *******
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -290,6 +264,47 @@ class LocationCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  // ? An empty imageName is a card whose lookup has not run or found nothing.
+  // ? CachedNetworkImage cannot be handed that, and the bundled asset is also
+  // ? the only placeholder that works with no network.
+  Widget _image() {
+    if (data.imageName.isEmpty) {
+      return _framed(const AssetImage(placeholderImageAsset));
+    }
+    return CachedNetworkImage(
+      imageUrl: data.imageName,
+      // ? upload.wikimedia.org answers a request with no User-Agent with 403.
+      httpHeaders: const {'User-Agent': wikimediaUserAgent},
+      errorWidget: (context, url, error) =>
+          _framed(const AssetImage(placeholderImageAsset)),
+      imageBuilder: (context, imageProvider) => _framed(imageProvider),
+      placeholder: (context, url) =>
+          const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  Widget _framed(ImageProvider image) {
+    return Container(
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          color: Colors.white,
+          image: DecorationImage(
+              image: image,
+              fit: BoxFit.cover,
+              colorFilter: data.alreadySeen
+                  ? ColorFilter.mode(
+                      Colors.black.withValues(alpha: 0.6), BlendMode.darken)
+                  : null),
+          boxShadow: const [
+            BoxShadow(
+              offset: Offset(0, 0),
+              blurRadius: 6,
+              color: Colors.white30,
+            )
+          ]),
     );
   }
 

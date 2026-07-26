@@ -88,6 +88,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # The placeholder for a card with no image. Bundled rather than fetched, so it
+  # also works as the offline fallback when an image lookup cannot run.
+  assets:
+    - assets/404page.jpg
+
   # To add assets to your application, add an assets section, like this:
   #assets:
   #  - assets/

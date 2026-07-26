@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:japan_travel/models/models.dart';
+import 'package:japan_travel/utils/image_lookup.dart';
 import 'package:http/http.dart' show Response, get;
 import 'dart:io';
 import 'dart:typed_data';
@@ -8,6 +9,12 @@ import 'package:path_provider/path_provider.dart';
 
 class HomeWidgetConfig {
   static Future<void> update(DataModel firstCard) async {
+    // ? Nothing to draw and nothing to download: the provider reads a blank
+    // ? imageName as "use the built-in background".
+    if (firstCard.imageName.isEmpty) {
+      await updateWithoutImage(firstCard);
+      return;
+    }
     Directory documentDirectory = await getApplicationDocumentsDirectory();
     String imageDirectory = "${documentDirectory.path}/images";
     String filePathAndName = '$imageDirectory/widget_preview.jpg';
@@ -38,6 +45,20 @@ class HomeWidgetConfig {
         iOSName: "japan_travel", androidName: "CustomHomeView");
   }
 
+  // ? A card whose lookup found nothing: the title, the distance and the
+  // ? navigation target are all real, so only the image is left blank. The
+  // ? provider reads that as "draw the built-in background".
+  static Future<void> updateWithoutImage(DataModel firstCard) async {
+    await HomeWidget.saveWidgetData('title', firstCard.title);
+    await HomeWidget.saveWidgetData(
+        'distance', getHumanizedDistance(firstCard.distance).$1);
+    await HomeWidget.saveWidgetData('imageName', '');
+    await HomeWidget.saveWidgetData('lat', firstCard.location.lat.toString());
+    await HomeWidget.saveWidgetData('lng', firstCard.location.lng.toString());
+    await HomeWidget.updateWidget(
+        iOSName: "japan_travel", androidName: "CustomHomeView");
+  }
+
   // ? An empty deck used to leave the widget advertising the card that was just
   // ? deleted. imageName is cleared rather than pointed at the stale preview file,
   // ? which is what the provider reads as "no card, no navigation target".
@@ -60,7 +81,10 @@ class HomeWidgetConfig {
         debugPrint('Widget image is not an http(s) URL: $imageName');
         return null;
       }
-      Response response = await get(uri);
+      // ? upload.wikimedia.org, where a looked-up image comes from, answers a
+      // ? request with no User-Agent with 403.
+      Response response =
+          await get(uri, headers: const {'User-Agent': wikimediaUserAgent});
       if (response.statusCode != 200) {
         debugPrint('Widget image download failed: HTTP ${response.statusCode}');
         return null;

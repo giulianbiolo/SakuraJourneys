@@ -8,6 +8,7 @@ import 'package:japan_travel/components/add_settings_card.dart';
 import 'package:japan_travel/components/location_card.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:japan_travel/utils/home_widget_config.dart';
+import 'package:japan_travel/utils/image_lookup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snapping_page_scroll/snapping_page_scroll.dart';
 import 'package:geolocator/geolocator.dart';
@@ -333,18 +334,74 @@ Future<LocationFixResult> updateCards(ListModel dataList,
     await loadData(dataList);
   }
   LocationFixResult result = LocationFixResult.skipped;
+  bool fixFailed = false;
   if (reorderData) {
     result = await orderDataOnCurrLocation(dataList, updateAllDistances);
-    // ? Without a fix the distances are at best from the previous one, so the
-    // ? nearest card may well be one the user has already walked away from.
-    // ? Leave the widget on its last good write rather than dating it.
-    if (result != LocationFixResult.updated) {
-      return result;
-    }
+    fixFailed = result != LocationFixResult.updated;
+  }
+  // ? After the sort, so the cards nearest the user get a photo first, and
+  // ? before the widget, so the card it shows has one. A failed fix does not
+  // ? stop this: the coordinates come from the card, not from the GPS.
+  await resolveMissingImages(dataList);
+  // ? Without a fix the distances are at best from the previous one, so the
+  // ? nearest card may well be one the user has already walked away from.
+  // ? Leave the widget on its last good write rather than dating it.
+  if (fixFailed) {
+    return result;
   }
   await updateWidget(dataList);
   return result;
 }
+
+/// Looks up a photo for the cards that have none and persists what it finds.
+/// Bounded on both count and elapsed time: an import can arrive with hundreds of
+/// blank cards and this runs inside a refresh the user is waiting on. The rest
+/// are picked up by later refreshes and by the background task.
+Future<void> resolveMissingImages(ListModel dataList) async {
+  List<DataModel> blank = [
+    for (int i = 0; i < dataList.length(); i++)
+      if (dataList.elem(i).imageName.isEmpty) dataList.elem(i)
+  ];
+  if (blank.isEmpty) return;
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  Map<String, int> skips = readImageSkips(prefs.getString(imageSkipsKey));
+  DateTime now = DateTime.now();
+  Stopwatch elapsed = Stopwatch()..start();
+  int attempts = 0;
+  bool changed = false;
+  bool skipsChanged = false;
+  for (DataModel card in blank) {
+    if (attempts >= _maxLookupsPerRun) break;
+    if (elapsed.elapsed > _lookupBudget) break;
+    if (isImageSkipped(skips, card.title, now)) continue;
+    attempts++;
+    ImageLookup found =
+        await lookupImage(title: card.title, location: card.location);
+    // ? Nothing will resolve until the network is back, so stop rather than
+    // ? spend the budget on five more cards that will fail the same way.
+    if (found.outcome == LookupOutcome.unreachable) break;
+    ImageResult? image = found.image;
+    if (image == null) {
+      skips[card.title] = now.millisecondsSinceEpoch;
+      skipsChanged = true;
+      continue;
+    }
+    if (dataList.applyImage(card, image.url, image.credit)) changed = true;
+    if (skips.remove(card.title) != null) skipsChanged = true;
+  }
+  if (skipsChanged) {
+    await prefs.setString(
+        imageSkipsKey, jsonEncode(pruneImageSkips(skips, now)));
+  }
+  // ? Unlike the rest of updateCards, this mutates the cards, so it owns the
+  // ? write instead of leaving it to the caller that asked for a refresh.
+  if (changed) {
+    await prefs.setString('dataList', jsonEncode(dataList.toJson()));
+  }
+}
+
+const int _maxLookupsPerRun = 6;
+const Duration _lookupBudget = Duration(seconds: 12);
 
 // ? Deliberately not deferred to a post-frame callback: the workmanager isolate
 // ? never builds a frame, so the callback would be queued there and never run.

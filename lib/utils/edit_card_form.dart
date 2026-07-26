@@ -127,7 +127,7 @@ class EditCardFormState extends State<EditCardForm> {
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Image URL (optional)",
-                  hintText: "Leave empty for a placeholder",
+                  hintText: "Leave empty to find one automatically",
                   icon: Icon(Icons.image),
                 ),
                 validator: (value) {
@@ -182,8 +182,12 @@ class EditCardFormState extends State<EditCardForm> {
                         max: 5.0,
                         divisions: 10,
                         label: _rating.toStringAsFixed(1),
-                        onChanged: (double value) =>
-                            setState(() => _rating = value),
+                        onChanged: (double value) {
+                          // ? Slider only calls this when the snapped value changes,
+                          // ? so this is one click per 0.5 tick.
+                          HapticFeedback.selectionClick();
+                          setState(() => _rating = value);
+                        },
                       ),
                     ),
                     SizedBox(
@@ -225,9 +229,9 @@ class EditCardFormState extends State<EditCardForm> {
                       // ? Here we need to add the data to the dataList and update the UI
                       DataModel newCardData = DataModel(
                         titleText.text,
-                        imageUrlText.text.isEmpty
-                            ? urlTo404Page
-                            : imageUrlText.text,
+                        // ? Emptying the field asks for a photo to be looked up
+                        // ? again on the next refresh.
+                        imageUrlText.text.trim(),
                         addressText.text,
                         tryParseLocationInput(latLngText.text)!,
                         descriptionText.text,
@@ -236,6 +240,11 @@ class EditCardFormState extends State<EditCardForm> {
                       // ? DataModel defaults alreadySeen to false, so without this
                       // ? any edit to a seen card silently marks it unseen again.
                       newCardData.alreadySeen = oldCardData.alreadySeen;
+                      // ? The credit names the author of one photo, so it only
+                      // ? survives an edit that left the URL alone.
+                      if (newCardData.imageName == oldCardData.imageName) {
+                        newCardData.imageCredit = oldCardData.imageCredit;
+                      }
                       // ? Same idea for distance, which defaults to null ("--"):
                       // ? an edit that left the coordinates alone did not change it.
                       if (newCardData.location.toString() ==

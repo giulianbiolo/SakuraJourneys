@@ -119,7 +119,7 @@ class AddFormState extends State<AddForm> {
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Image URL (optional)",
-                  hintText: "Leave empty for a placeholder",
+                  hintText: "Leave empty to find one automatically",
                   icon: Icon(Icons.image),
                 ),
                 validator: (value) {
@@ -176,8 +176,12 @@ class AddFormState extends State<AddForm> {
                         max: 5.0,
                         divisions: 10,
                         label: _rating.toStringAsFixed(1),
-                        onChanged: (double value) =>
-                            setState(() => _rating = value),
+                        onChanged: (double value) {
+                          // ? Slider only calls this when the snapped value changes,
+                          // ? so this is one click per 0.5 tick.
+                          HapticFeedback.selectionClick();
+                          setState(() => _rating = value);
+                        },
                       ),
                     ),
                     SizedBox(
@@ -266,9 +270,9 @@ class AddFormState extends State<AddForm> {
                           // ? Here we need to add the data to the dataList and update the UI
                           DataModel data = DataModel(
                             titleText.text,
-                            imageUrlText.text.isEmpty
-                                ? urlTo404Page
-                                : imageUrlText.text,
+                            // ? Left empty on purpose: updateCards looks a photo
+                            // ? up from the title and the coordinates.
+                            imageUrlText.text.trim(),
                             addressText.text,
                             tryParseLocationInput(latLngText.text)!,
                             descriptionText.text,

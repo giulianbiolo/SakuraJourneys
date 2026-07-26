@@ -9,17 +9,19 @@ toggle per card, JSON import/export/share, and an Android home-screen widget sho
 - `flutter pub get` after any checkout or `flutter clean`. If `.dart_tool/` is stale, `flutter analyze --no-pub`
   emits ~168 bogus `Target of URI doesn't exist` / `undefined_identifier` errors; those are resolution
   failures, not real errors.
-- `flutter analyze` is the only static check. There is no `test/` directory, so `flutter test` has nothing
-  to run; do not claim tests pass. `ios/RunnerTests/` is the untouched template.
+- `flutter analyze` and `flutter test` are the two checks. `test/` holds unit tests only, for the functions
+  that take third-party input (`models_test.dart`) and for the image lookup's scoring and parsing
+  (`image_lookup_test.dart`); 94 tests, ~1 s, no network and no device. There are no widget tests.
+  `ios/RunnerTests/` is the untouched template.
 - Verified green from a clean tree (`flutter clean` + `flutter pub get`) on Flutter 3.44.8 / Dart 3.12.2 with
-   JDK 21.0.12: `flutter build apk --debug` (~24 s, 152 MB) and `flutter build apk --release` (~50 s, 55.4 MB).
+   JDK 21.0.12: `flutter build apk --debug` (~24 s, 152 MB) and `flutter build apk --release` (~30 s, 56.4 MB).
    Two messages are noise, not failures: the repeated `source/target value 8 is obsolete` javac warnings from
    old plugins, and `Caught exception: Already watching path: .../android`.
-- Baseline analyze output is 2 `info`-level findings, no errors: `withOpacity` twice in `location_card.dart`.
-  Not regressions. Keep the output diffable: do not mass-fix them unasked. (It was 20 until the
+- Baseline analyze output is now `No issues found!`. Keep it there. (It was 20 until the
   `use_build_context_synchronously` cluster went away with the `SharedPreferences.getInstance().then(...)`
   blocks in `location_card.dart`, then 6 until the `Color.red/.green/.blue/.value` uses went with the
-  widget's dominant-colour code.)
+  widget's dominant-colour code, then 2 `withOpacity` findings until both card decorations were folded into
+  the one `_framed` helper that the image lookup needed anyway.)
 - `dart format` matches most of the tree but is not enforced; `lib/utils/add_form.dart` (the whole
   `Padding`/`Row` block from line 158) and the `updateCards(...)` call on `lib/utils/edit_card_form.dart:217` are
   still unformatted. Format only files you touch, and only the lines you touch: the formatter reindents whole
@@ -96,8 +98,10 @@ ignored an injected position.
 The debug build is debuggable, so `run-as` reads private app data without root. Everything observable lives in
 four files under `/data/data/com.example.japan_travel/`:
 
-- `shared_prefs/FlutterSharedPreferences.xml` - `flutter.dataList` (the JSON deck) and
-  `flutter.lastCloserLocation`. Note `dataList` does not exist until the first mutation; a fresh install runs
+- `shared_prefs/FlutterSharedPreferences.xml` - `flutter.dataList` (the JSON deck),
+  `flutter.lastCloserLocation`, `flutter.lastFixLat`/`Lng`, and `flutter.imageLookupSkips` (the titles whose
+  image lookup found nothing, with the epoch millis it happened). Doubles are stored as strings with a base64
+  prefix, so grep for the key name, not for `value="`. Note `dataList` does not exist until the first mutation; a fresh install runs
   on `dataListDefault()` with nothing persisted. Overwriting this file (app force-stopped, then
   `adb shell "cat /sdcard/Download/prefs.xml | run-as com.example.japan_travel sh -c 'cat > <path>'"`) is the
   cheapest way to exercise the deserialisers: crafted records reach `ListModel.fromJson`, or
@@ -399,6 +403,11 @@ placeholder and blanks `imageName`/`lat`/`lng`. The provider reads a blank `imag
 `google.navigation:` route. `cachedImageUrl` is left alone on purpose, so a card that comes back with the same
 URL still hits the on-disk preview.
 
+A first card whose image lookup found nothing takes `updateWithoutImage` (`:57`), which is the same blank
+`imageName` but keeps `lat`/`lng`, so the widget draws the background and still navigates. The widget shows no
+`imageCredit`: the layout has nowhere to put one without moving the scrim the contrast numbers above were
+derived from. That is an attribution gap to close before this ships anywhere public.
+
 The provider hands `updateAppWidget` a `RemoteViews(landscape, portrait)` pair, each holding a bitmap cropped to
 that orientation's box: `(MIN_WIDTH, MAX_HEIGHT)` in portrait, `(MAX_WIDTH, MIN_HEIGHT)` in landscape, since the
 host reports both orientations as one range and MAX x MAX is the landscape box. The file is decoded once, at the
@@ -410,15 +419,58 @@ Background refresh: `workmanager` runs `callbackDispatcher` (`lib/main.dart:10`)
 **fresh** `ListModel()`, so background updates read from `SharedPreferences` and never see the UI's instance.
 `@pragma('vm:entry-point')` on that function is mandatory; do not remove it.
 
+### Image lookup: Wikimedia, no key
+
+A card with an empty `imageName` has no photo chosen, and `resolveMissingImages` (`lib/screens/home.dart`)
+looks one up. It runs inside `updateCards`, after the sort so the nearest cards are served first and before
+`updateWidget` so the widget's card has one, and it owns its own `dataList` write because it mutates cards.
+It is bounded at 6 lookups and 12 s per run; the rest are picked up by later refreshes and by the background
+task. Cards that come from a Google Takeout import all start empty, which is the case that motivated the
+bound.
+
+`lookupImage` (`lib/utils/image_lookup.dart`) asks `en.wikipedia.org`, or `ja.wikipedia.org` when the title
+contains CJK, in two steps: `generator=geosearch` within 3 km for an article *named like the card*
+(similarity >= 0.6), then `generator=search` on the title, accepting a hit only if its article has
+coordinates within 30 km (similarity >= 0.45). Both steps carry `prop=pageimages|coordinates`. A third
+request reads `extmetadata` for the chosen file and builds `imageCredit`, "Kakidai / CC BY-SA 3.0". Nothing
+found means the card stays empty and the bundled `assets/404page.jpg` is drawn.
+
+Four things are load-bearing:
+
+- **Never build a thumbnail URL by hand.** `upload.wikimedia.org` serves only its standard widths
+  (20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840) and answers anything else with HTTP 400 and
+  "Use thumbnail sizes listed on ...". The API rounds `pithumbsize` up to one of those when it builds
+  `thumbnail.source`, so use that string as it comes.
+- **Send a User-Agent.** Both the API and `upload.wikimedia.org` answer a request with no UA with 403.
+  `wikimediaUserAgent` is shared by the lookup, `CachedNetworkImage`'s `httpHeaders` and the widget's
+  preview download.
+- **The coordinate filter on the search step is what keeps the photo right.** Searching "Fushimi Inari"
+  answers with the deity article first; it has no coordinates, so it is rejected and the shrine is taken.
+- **The length guard in `titleSimilarity`.** Without it "Shinjuku" matches "Hotel Gracery Shinjuku" and
+  every card in a city resolves to the city's own article.
+
+There is deliberately no "nearest article, whatever it is about" fallback. Measured on the emulator, the
+nearest article to a Shinjuku hotel is the 2001 Kabukicho building fire and the nearest to a Haneda side
+street is a plane crash.
+
+A lookup distinguishes "no article" from "no network" (`LookupOutcome`). Only the first is written to
+`imageLookupSkips` and retried after 7 days; an unreachable host stops the run without recording anything,
+so a refresh on a train does not leave cards blank for a week.
+
 ### Persistence: one JSON format, plus a legacy reader
 
 `SharedPreferences` key `dataList` holds `jsonEncode(ListModel.toJson())`, the same format used for
 import/export/share. `toJson` writes `location` as the `"(lat, lng)"` string and `rating` / `alreadySeen` as
 strings. Reading goes through `ListModel.fromJson` (`lib/models/models.dart:194`) -> `DataModel.tryFromJson`
 (`:89`), which reads defensively because the same path takes third-party JSON: a `num` or `String` rating, a
-`bool` or `"true"` for `alreadySeen`, missing `imageName` / `address` / `description` defaulted, and any record
-without a usable `title` or `location` skipped. Do not replace that with `double.parse` / direct casts; a
-shared card that writes `rating` as a number then throws.
+`bool` or `"true"` for `alreadySeen`, missing `imageName` / `address` / `description` / `imageCredit`
+defaulted, and any record without a usable `title` or `location` skipped. Do not replace that with
+`double.parse` / direct casts; a shared card that writes `rating` as a number then throws.
+
+`imageName` is the empty string when no photo has been chosen, which is what marks the card for a lookup;
+`normaliseImageName` also reads the old `urlTo404Page` value as empty, so cards written before the lookup
+existed become eligible instead of keeping the placeholder forever. Both the forms and the Takeout importer
+store `""` rather than substituting a URL.
 
 Before this, the key held a delimiter blob: records joined by `|;|`, fields joined by `|:|` in the order
 `title | imageName | address | (lat, lng) | alreadySeen | description | rating`. `loadData`
