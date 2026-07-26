@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ? angle 90 puts startColor at the bottom: 0% at the band top, 60% at its centre,
+     ? 85% at the baseline. The title lands near the centre stop (t~0.46, set by the
+     ? container's 64dp paddingTop), where 60% black scores white text 4.8:1 even over
+     ? a pure white pixel. Both that stop and paddingTop move that number. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="90"
+        android:startColor="#D9000000"
+        android:centerColor="#99000000"
+        android:endColor="#00000000"
+    />
+    <corners
+        android:bottomLeftRadius="16dp"
+        android:bottomRightRadius="16dp"
+    />
+</shape>

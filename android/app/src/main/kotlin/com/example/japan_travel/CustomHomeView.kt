@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.BitmapFactory
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
@@ -32,13 +31,11 @@ class CustomHomeView : HomeWidgetProvider() {
             val cardTitle = widgetData.getString("title", "Loading...")
             val cardDistance = widgetData.getString("distance", "calculating...")
             val cardImage = widgetData.getString("imageName", null)
-            val cardTextColor = widgetData.getString("textColor", "#FFFFFF")
             val lat = widgetData.getString("lat", "")
             val lng = widgetData.getString("lng", "")
             println("cardTitle: $cardTitle")
             println("cardDistance: $cardDistance")
             println("cardImage: $cardImage")
-            println("cardTextColor: $cardTextColor")
 
             // ? Empty deck: Dart clears lat/lng/imageName, and navigating to (0, 0)
             // ? would be worse than useless, so the tap opens the app instead.
@@ -90,9 +87,9 @@ class CustomHomeView : HomeWidgetProvider() {
             // ? own, with no broadcast to re-render in, so a single bitmap sized for the
             // ? current box is the one thing centerCrop cannot fix afterwards.
             val portraitViews = buildViews(context, pendingIntentWithData, cardTitle,
-                    cardDistance, cardTextColor, portraitBitmap)
+                    cardDistance, portraitBitmap)
             val landscapeViews = buildViews(context, pendingIntentWithData, cardTitle,
-                    cardDistance, cardTextColor, landscapeBitmap)
+                    cardDistance, landscapeBitmap)
             appWidgetManager.updateAppWidget(appWidgetId,
                     RemoteViews(landscapeViews, portraitViews))
         }
@@ -116,15 +113,12 @@ class CustomHomeView : HomeWidgetProvider() {
             clickIntent: PendingIntent,
             title: String?,
             distance: String?,
-            textColor: String?,
             image: Bitmap?
     ): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.card_widget_layout)
         views.setOnClickPendingIntent(R.id.widget_image, clickIntent)
         views.setTextViewText(R.id.widget_title, title)
         views.setTextViewText(R.id.widget_distance, distance)
-        views.setTextColor(R.id.widget_title, Color.parseColor(textColor))
-        views.setTextColor(R.id.widget_distance, Color.parseColor(textColor))
         if (image != null) {
             views.setImageViewBitmap(R.id.widget_image, image)
         } else {

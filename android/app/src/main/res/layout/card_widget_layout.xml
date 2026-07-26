@@ -11,12 +11,19 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
     />
+    <!-- ? The scrim is this container's background rather than a fixed-height overlay,
+         ? so it always covers exactly the text at any widget size. paddingTop is the
+         ? gradient's fade-in room above the title. -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_gravity="bottom|start"
-        android:padding="16dp">
+        android:layout_gravity="bottom"
+        android:background="@drawable/widget_text_scrim"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="64dp"
+        android:paddingBottom="16dp">
         <TextView
             android:id="@+id/widget_title"
             android:layout_width="wrap_content"
@@ -28,9 +35,9 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:shadowColor="#000000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="2"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="6"
         />
         <TextView
             android:id="@+id/widget_distance"
@@ -43,9 +50,9 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:shadowColor="#000000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="2"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="6"
         />
     </LinearLayout>
 </FrameLayout>
