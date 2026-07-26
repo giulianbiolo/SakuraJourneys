@@ -60,7 +60,7 @@ class SettingsFormState extends State<SettingsForm> {
                         if (receivedJson.containsKey("data") &&
                             receivedJson["data"] is List) {
                           List<DataModel> receivedData =
-                              dataFromJson(receivedJson);
+                              ListModel.fromJson(receivedJson);
                           if (context.mounted) {
                             Provider.of<ListModel>(context, listen: false)
                                 .loadData(receivedData);
@@ -69,8 +69,9 @@ class SettingsFormState extends State<SettingsForm> {
                             if (context.mounted) {
                               prefs.setString(
                                   'dataList',
-                                  Provider.of<ListModel>(context, listen: false)
-                                      .toString());
+                                  jsonEncode(Provider.of<ListModel>(context,
+                                          listen: false)
+                                      .toJson()));
                               // ? reorderData: imported cards start at distance
                               // ? 0.0, which renders as "Here!" and sorts first.
                               updateCards(
@@ -196,10 +197,10 @@ class SettingsFormState extends State<SettingsForm> {
                           .clearAllData();
                       Provider.of<ListModel>(context, listen: false)
                           .loadData(dataListDefault());
-                      String defaultData =
+                      Map<String, dynamic> defaultData =
                           Provider.of<ListModel>(context, listen: false)
-                              .toString();
-                      prefs.setString('dataList', defaultData);
+                              .toJson();
+                      prefs.setString('dataList', jsonEncode(defaultData));
                       await updateCards(
                           Provider.of<ListModel>(context, listen: false),
                           reloadFromMemory: false,

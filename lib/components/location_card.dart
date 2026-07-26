@@ -194,8 +194,9 @@ class LocationCard extends StatelessWidget {
                               // *** Quick Share Of Single Card ***
                               IconButton(
                                 onPressed: () async {
-                                  Map<String, dynamic> jsonData =
-                                      ListModel.toJsonSingle(data);
+                                  Map<String, dynamic> jsonData = {
+                                    "data": [data.toJson()]
+                                  };
                                   String jsonString = jsonEncode(jsonData);
                                   Share.share(jsonString);
                                 },
@@ -299,7 +300,7 @@ class LocationCard extends StatelessWidget {
 
   Future<void> _persist(ListModel model) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('dataList', model.toString());
+    await prefs.setString('dataList', jsonEncode(model.toJson()));
     await updateCards(model,
         reloadFromMemory: false, reorderData: false, updateAllDistances: false);
   }

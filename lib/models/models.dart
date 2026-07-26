@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,9 +72,37 @@ class DataModel {
     return copied;
   }
 
-  @override
-  String toString() {
-    return "$title|:|$imageName|:|$address|:|$location|:|$alreadySeen|:|$description|:|$rating";
+  Map<String, dynamic> toJson() {
+    return {
+      "title": title,
+      "imageName": imageName,
+      "address": address,
+      "location": location.toString(),
+      "description": description,
+      "rating": rating.toString(),
+      "alreadySeen": alreadySeen ? "true" : "false",
+    };
+  }
+
+  // ? Returns null instead of throwing: imported JSON is third-party input and is
+  // ? not guaranteed to use the types toJson() writes, so a bad record is skipped.
+  static DataModel? tryFromJson(Object? record) {
+    if (record is! Map) return null;
+    Object? title = record["title"];
+    LocationModel? location =
+        LocationModel.tryFromLatLngString(record["location"]);
+    if (title is! String || title.isEmpty || location == null) return null;
+    DataModel data = DataModel(
+      title,
+      record["imageName"] is String ? record["imageName"] : urlTo404Page,
+      record["address"] is String ? record["address"] : "",
+      location,
+      record["description"] is String ? record["description"] : "",
+      _ratingFromJson(record["rating"]),
+    );
+    data.alreadySeen =
+        record["alreadySeen"] == "true" || record["alreadySeen"] == true;
+    return data;
   }
 }
 
@@ -155,61 +185,51 @@ class ListModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  @override
-  String toString() {
-    String result = "";
-    for (DataModel data in _data) {
-      result += "$data|;|";
-    }
-    return result;
-  }
-
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> jsonData = {
-      "data": [],
+    return {
+      "data": [for (DataModel data in _data) data.toJson()],
     };
-    for (DataModel data in _data) {
-      jsonData["data"].add({
-        "title": data.title,
-        "imageName": data.imageName,
-        "address": data.address,
-        "location": data.location.toString(),
-        "description": data.description,
-        "rating": data.rating.toString(),
-        "alreadySeen": data.alreadySeen ? "true" : "false",
-      });
-    }
-    return jsonData;
   }
 
-  static Map<String, dynamic> toJsonSingle(DataModel data) {
-    return {
-      "data": [
-        {
-          "title": data.title,
-          "imageName": data.imageName,
-          "address": data.address,
-          "location": data.location.toString(),
-          "description": data.description,
-          "rating": data.rating.toString(),
-          "alreadySeen": data.alreadySeen ? "true" : "false",
-        }
-      ]
-    };
+  static List<DataModel> fromJson(Map<String, dynamic> jsonData) {
+    List<DataModel> listModel = [];
+    Object? records = jsonData["data"];
+    if (records is! List) return listModel;
+    for (Object? record in records) {
+      DataModel? data = DataModel.tryFromJson(record);
+      if (data != null) listModel.add(data);
+    }
+    return listModel;
   }
 }
 
 Future<void> loadData(ListModel dataList) async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  String dataString = (prefs.getString("dataList") ?? "").trim();
-  List<DataModel> savedList = dataFromString(dataString);
-  dataList.loadData(savedList);
-  if (dataList.length() == 0) {
+  String? stored = prefs.getString("dataList");
+  if (stored == null) {
+    // ? Only a fresh install has no key at all. An emptied deck stores an empty
+    // ? "data" list, and must stay empty instead of resurrecting the samples.
     dataList.loadData(dataListDefault());
+    return;
+  }
+  String trimmed = stored.trim();
+  if (trimmed.isEmpty) return;
+  if (!trimmed.startsWith("{")) {
+    // ? Installs from before the JSON switch still hold the |;|-delimited blob.
+    dataList.loadData(dataFromLegacyString(trimmed));
+    await prefs.setString('dataList', jsonEncode(dataList.toJson()));
+    return;
+  }
+  try {
+    dataList.loadData(ListModel.fromJson(jsonDecode(trimmed)));
+  } catch (e) {
+    // ? Keep the unreadable blob on disk: the next mutation overwrites it, and
+    // ? discarding it here would destroy the only copy of the user's cards.
+    debugPrint('Stored cards are not readable JSON: $e');
   }
 }
 
-List<DataModel> dataFromString(String datastr) {
+List<DataModel> dataFromLegacyString(String datastr) {
   List<DataModel> listModel = [];
   List<String> dataList = datastr.split("|;|");
   for (String data in dataList) {
@@ -230,39 +250,6 @@ List<DataModel> dataFromString(String datastr) {
       double.tryParse(dataFields[6].trim()) ?? 0.0,
     ));
     listModel.last.alreadySeen = dataFields[4] == "true";
-  }
-  return listModel;
-}
-
-List<DataModel> dataFromJson(Map<String, dynamic> jsonData) {
-  List<DataModel> listModel = [];
-  Object? records = jsonData["data"];
-  if (records is! List) {
-    return listModel;
-  }
-  // ? Third-party JSON is not guaranteed to use the types toJson() writes, so
-  // ? every field is read defensively and an unusable record is skipped.
-  for (Object? record in records) {
-    if (record is! Map) {
-      continue;
-    }
-    Object? title = record["title"];
-    LocationModel? location =
-        LocationModel.tryFromLatLngString(record["location"]);
-    if (title is! String || title.isEmpty || location == null) {
-      continue;
-    }
-    DataModel data = DataModel(
-      title,
-      record["imageName"] is String ? record["imageName"] : urlTo404Page,
-      record["address"] is String ? record["address"] : "",
-      location,
-      record["description"] is String ? record["description"] : "",
-      _ratingFromJson(record["rating"]),
-    );
-    data.alreadySeen =
-        record["alreadySeen"] == "true" || record["alreadySeen"] == true;
-    listModel.add(data);
   }
   return listModel;
 }

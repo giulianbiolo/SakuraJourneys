@@ -175,14 +175,14 @@ class AddFormState extends State<AddForm> {
                           loadedData["data"] is! List) {
                         throw const FormatException('missing "data" list');
                       }
-                      List<DataModel> dataList = dataFromJson(loadedData);
+                      List<DataModel> dataList = ListModel.fromJson(loadedData);
                       ListModel model =
                           Provider.of<ListModel>(context, listen: false);
                       model.loadData(dataList);
                       SharedPreferences prefs =
                           await SharedPreferences.getInstance();
                       if (!context.mounted) return;
-                      prefs.setString('dataList', model.toString());
+                      prefs.setString('dataList', jsonEncode(model.toJson()));
                       updateCards(model,
                           reloadFromMemory: false,
                           reorderData: true,
@@ -237,10 +237,10 @@ class AddFormState extends State<AddForm> {
                           SharedPreferences prefs =
                               await SharedPreferences.getInstance();
                           if (context.mounted) {
-                            String settingString =
+                            Map<String, dynamic> newCards =
                                 Provider.of<ListModel>(context, listen: false)
-                                    .toString();
-                            prefs.setString('dataList',settingString);
+                                    .toJson();
+                            prefs.setString('dataList', jsonEncode(newCards));
                             // ? reorderData: a new card starts at distance 0.0, which renders as "Here!" and sorts first.
                             updateCards(Provider.of<ListModel>(context, listen: false), reloadFromMemory: false, reorderData: true, updateAllDistances: false);
                             Navigator.pop(context);

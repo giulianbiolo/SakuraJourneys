@@ -94,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!receivedJson.containsKey("data") || receivedJson["data"] is! List) {
         throw const FormatException('missing "data" list');
       }
-      receivedData = dataFromJson(receivedJson);
+      receivedData = ListModel.fromJson(receivedJson);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ListModel model = Provider.of<ListModel>(context, listen: false);
     model.loadData(receivedData);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('dataList', model.toString());
+    await prefs.setString('dataList', jsonEncode(model.toJson()));
     try {
       await updateCards(model,
           reloadFromMemory: false,
