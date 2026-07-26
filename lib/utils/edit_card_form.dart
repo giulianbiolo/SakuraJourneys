@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
@@ -30,7 +32,8 @@ class EditCardFormState extends State<EditCardForm> {
   final addressText = TextEditingController();
   final imageUrlText = TextEditingController();
   final latLngText = TextEditingController();
-  final ratingText = TextEditingController();
+  double _rating = 0.0;
+  bool _locating = false;
 
   @override
   void initState() {
@@ -41,7 +44,25 @@ class EditCardFormState extends State<EditCardForm> {
     addressText.text = widget.initialCardData.address;
     imageUrlText.text = widget.initialCardData.imageName;
     latLngText.text = widget.initialCardData.location.toString();
-    ratingText.text = widget.initialCardData.rating.toString();
+    // ? The slider has 0.5 steps, so an imported 4.3 has to land somewhere.
+    _rating = (widget.initialCardData.rating.clamp(0.0, 5.0) * 2).round() / 2;
+  }
+
+  Future<void> _fillCurrentLocation() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _locating = true);
+    final (LocationFixResult result, Position? position) =
+        await currentPosition();
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(locationProblemText(result))),
+      );
+      return;
+    }
+    latLngText.text =
+        LocationModel(position.latitude, position.longitude).toString();
   }
 
   @override
@@ -70,20 +91,19 @@ class EditCardFormState extends State<EditCardForm> {
                 },
                 controller: titleText,
               ),
+              // ? Optional here for the same reason as in add_form: a card added
+              // ? or imported without an address must stay editable.
               TextFormField(
                 minLines: 5,
                 maxLines: 10,
                 keyboardType: TextInputType.multiline,
                 decoration: const InputDecoration(
-                  labelText: "Description",
+                  labelText: "Description (optional)",
                   hintText: "Enter the description",
                   icon: Icon(Icons.description),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (value.length > maxDescriptionLength) {
+                  if (value != null && value.length > maxDescriptionLength) {
                     return 'Description must be less than $maxDescriptionLength characters';
                   }
                   return null;
@@ -92,15 +112,12 @@ class EditCardFormState extends State<EditCardForm> {
               ),
               TextFormField(
                 decoration: const InputDecoration(
-                  labelText: "Address",
+                  labelText: "Address (optional)",
                   hintText: "Enter the address",
                   icon: Icon(Icons.location_on),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (value.length > maxAddressLength) {
+                  if (value != null && value.length > maxAddressLength) {
                     return 'Address must be less than $maxAddressLength characters';
                   }
                   return null;
@@ -109,14 +126,12 @@ class EditCardFormState extends State<EditCardForm> {
               ),
               TextFormField(
                 decoration: const InputDecoration(
-                  labelText: "Image URL",
-                  hintText: "Enter the image URL",
+                  labelText: "Image URL (optional)",
+                  hintText: "Leave empty for a placeholder",
                   icon: Icon(Icons.image),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
+                  if (value == null || value.isEmpty) return null;
                   if (!Uri.parse(value).isAbsolute) {
                     return 'Please enter a valid URL';
                   }
@@ -125,41 +140,58 @@ class EditCardFormState extends State<EditCardForm> {
                 controller: imageUrlText,
               ),
               TextFormField(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Latitude & Longitude",
-                  hintText: "Enter value as (lat, lng) in decimal notation",
-                  icon: Icon(Icons.gps_fixed),
+                  hintText: "(lat, lng) or a Google Maps link",
+                  icon: const Icon(Icons.gps_fixed),
+                  suffixIcon: _locating
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : IconButton(
+                          tooltip: 'Use my current location',
+                          onPressed: _fillCurrentLocation,
+                          icon: const Icon(Icons.my_location),
+                        ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter some text';
                   }
-                  if (LocationModel.tryFromLatLngString(value) == null) {
-                    return 'Please enter: (lat, lng) in decimal base notation';
+                  if (tryParseLocationInput(value) == null) {
+                    return 'Enter (lat, lng) or paste a Google Maps link';
                   }
                   return null;
                 },
                 controller: latLngText,
               ),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Rating",
-                  hintText: "Enter the rating",
-                  icon: Icon(Icons.star),
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Slider(
+                        value: _rating,
+                        min: 0.0,
+                        max: 5.0,
+                        divisions: 10,
+                        label: _rating.toStringAsFixed(1),
+                        onChanged: (double value) =>
+                            setState(() => _rating = value),
+                      ),
+                    ),
+                    SizedBox(
+                        width: 32,
+                        child: Text(_rating.toStringAsFixed(1),
+                            textAlign: TextAlign.right)),
+                  ],
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a number';
-                  }
-                  if (double.parse(value) < 0 || double.parse(value) > 5) {
-                    return 'Must be between 0 and 5';
-                  }
-                  return null;
-                },
-                controller: ratingText,
               ),
             ],
           ),
@@ -193,15 +225,23 @@ class EditCardFormState extends State<EditCardForm> {
                       // ? Here we need to add the data to the dataList and update the UI
                       DataModel newCardData = DataModel(
                         titleText.text,
-                        imageUrlText.text,
+                        imageUrlText.text.isEmpty
+                            ? urlTo404Page
+                            : imageUrlText.text,
                         addressText.text,
-                        LocationModel.tryFromLatLngString(latLngText.text)!,
+                        tryParseLocationInput(latLngText.text)!,
                         descriptionText.text,
-                        double.parse(ratingText.text),
+                        _rating,
                       );
                       // ? DataModel defaults alreadySeen to false, so without this
                       // ? any edit to a seen card silently marks it unseen again.
                       newCardData.alreadySeen = oldCardData.alreadySeen;
+                      // ? Same idea for distance, which defaults to null ("--"):
+                      // ? an edit that left the coordinates alone did not change it.
+                      if (newCardData.location.toString() ==
+                          oldCardData.location.toString()) {
+                        newCardData.distance = oldCardData.distance;
+                      }
                       Provider.of<ListModel>(context, listen: false)
                           .removeData(oldCardData);
                       Provider.of<ListModel>(context, listen: false)

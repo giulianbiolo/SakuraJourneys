@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:japan_travel/screens/home.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,6 +29,114 @@ class SettingsFormState extends State<SettingsForm> {
   // Note: This is a `GlobalKey<FormState>`,
   // not a GlobalKey<MyCustomFormState>.
   final _formKey = GlobalKey<FormState>();
+  bool _replaceOnImport = false;
+
+  // ? A fixed name meant every export after the first landed next to the last one
+  // ? as "exportData.json (1)".
+  String _exportFileName() {
+    DateTime now = DateTime.now();
+    String pad(int value) => value.toString().padLeft(2, '0');
+    return 'sakura-journeys-${now.year}-${pad(now.month)}-${pad(now.day)}.json';
+  }
+
+  Future<void> _importFromFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json', 'txt', 'md'],
+    );
+    if (result == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No file selected')),
+        );
+      }
+      return;
+    }
+    List<DataModel> receivedData;
+    int offered;
+    try {
+      String fileContent = await File(result.files.single.path!).readAsString();
+      Map<String, dynamic> receivedJson = jsonDecode(fileContent);
+      if (!isImportable(receivedJson)) {
+        throw const FormatException('neither a "data" nor a "features" list');
+      }
+      final parsed = parseImport(receivedJson);
+      receivedData = parsed.cards;
+      offered = parsed.offered;
+    } catch (e) {
+      debugPrint('Import failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error loading data')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    ListModel model = Provider.of<ListModel>(context, listen: false);
+    ImportCounts counts =
+        model.loadData(receivedData, replace: _replaceOnImport);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(counts.summary(offered - receivedData.length)),
+    ));
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('dataList', jsonEncode(model.toJson()));
+    // ? reorderData: imported cards have no distance yet, so they read "--" and
+    // ? sort to the end until a fix arrives.
+    updateCards(model,
+        reloadFromMemory: false, reorderData: true, updateAllDistances: false);
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _shareCards() async {
+    String jsonString =
+        jsonEncode(Provider.of<ListModel>(context, listen: false).toJson());
+    try {
+      // ? A .json attachment rather than a text blob: a whole deck pasted into a
+      // ? chat is unreadable, and the receiving side already reads attachments.
+      Directory directory = await getTemporaryDirectory();
+      File file = File('${directory.path}/${_exportFileName()}');
+      await file.writeAsString(jsonString);
+      await Share.shareXFiles([XFile(file.path, mimeType: 'application/json')]);
+    } catch (e) {
+      debugPrint('Share failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error sharing data')),
+        );
+      }
+    }
+  }
+
+  // ? A delete can be undone from its snackbar; a reset drops the whole deck at
+  // ? once and cannot, so it asks first.
+  Future<bool> _confirmReset() async {
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reset to default?'),
+          content: const Text(
+              'Every card is removed and the sample places come back. This cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              style: const ButtonStyle(
+                foregroundColor:
+                    WidgetStatePropertyAll(Color.fromARGB(255, 255, 0, 0)),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed ?? false; // ? Dismissed by tapping outside
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,68 +153,30 @@ class SettingsFormState extends State<SettingsForm> {
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: ElevatedButton.icon(
-                  onPressed: () async {
-                    // ? Open the file selector
-                    FilePickerResult? result =
-                        await FilePicker.platform.pickFiles(
-                      type: FileType.custom,
-                      allowedExtensions: ['json', 'txt', 'md'],
-                    );
-                    if (result != null) {
-                      File file = File(result.files.single.path!);
-                      String fileContent = await file.readAsString();
-
-                      try {
-                        Map<String, dynamic> receivedJson =
-                            jsonDecode(fileContent);
-                        if (receivedJson.containsKey("data") &&
-                            receivedJson["data"] is List) {
-                          List<DataModel> receivedData =
-                              ListModel.fromJson(receivedJson);
-                          if (context.mounted) {
-                            Provider.of<ListModel>(context, listen: false)
-                                .loadData(receivedData);
-                            SharedPreferences prefs =
-                                await SharedPreferences.getInstance();
-                            if (context.mounted) {
-                              prefs.setString(
-                                  'dataList',
-                                  jsonEncode(Provider.of<ListModel>(context,
-                                          listen: false)
-                                      .toJson()));
-                              // ? reorderData: imported cards start at distance
-                              // ? 0.0, which renders as "Here!" and sorts first.
-                              updateCards(
-                                  Provider.of<ListModel>(context,
-                                      listen: false),
-                                  reloadFromMemory: false,
-                                  reorderData: true,
-                                  updateAllDistances: false);
-                              Navigator.pop(context);
-                            }
-                          }
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Error loading data')),
-                          );
-                        }
-                      }
-                    } else {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('No file selected')),
-                        );
-                      }
-                    }
-                  },
+                  onPressed: _importFromFile,
                   style: const ButtonStyle(
                     alignment: Alignment.center,
                     fixedSize: WidgetStatePropertyAll(Size(200, 50)),
                   ),
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Import From File'),
+                ),
+              ),
+              SizedBox(
+                width: 240,
+                child: CheckboxListTile(
+                  value: _replaceOnImport,
+                  onChanged: (bool? value) {
+                    HapticFeedback.mediumImpact();
+                    setState(() => _replaceOnImport = value ?? false);
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text('Replace deck on import',
+                      style: TextStyle(fontSize: 13)),
+                  subtitle: const Text('Drops cards the file does not list',
+                      style: TextStyle(fontSize: 11)),
                 ),
               ),
               Padding(
@@ -124,7 +196,7 @@ class SettingsFormState extends State<SettingsForm> {
                         dialogTitle: 'Save your data',
                         type: FileType.custom,
                         allowedExtensions: ['json'],
-                        fileName: 'exportData.json',
+                        fileName: _exportFileName(),
                         bytes: utf8.encode(jsonString),
                       );
                     } catch (e) {
@@ -171,12 +243,7 @@ class SettingsFormState extends State<SettingsForm> {
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Map<String, dynamic> jsonData =
-                        Provider.of<ListModel>(context, listen: false).toJson();
-                    String jsonString = jsonEncode(jsonData);
-                    Share.share(jsonString);
-                  },
+                  onPressed: _shareCards,
                   style: const ButtonStyle(
                     alignment: Alignment.center,
                     fixedSize: WidgetStatePropertyAll(Size(200, 50)),
@@ -190,6 +257,7 @@ class SettingsFormState extends State<SettingsForm> {
                 padding: const EdgeInsets.all(12.0),
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    if (!await _confirmReset()) return;
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();
                     if (context.mounted) {

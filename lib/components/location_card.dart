@@ -191,6 +191,42 @@ class LocationCard extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+                              // *** Navigate To Single Card ***
+                              // ? Double-tapping the image does this too, but
+                              // ? nothing on screen said so.
+                              IconButton(
+                                onPressed: () {
+                                  HapticFeedback.mediumImpact();
+                                  navigateTo(
+                                      data.location.lat, data.location.lng);
+                                },
+                                style: const ButtonStyle(
+                                    backgroundColor: WidgetStatePropertyAll(
+                                        Color.fromARGB(25, 0, 230, 118))),
+                                icon: const Icon(Icons.directions,
+                                    size: 32, color: Colors.green),
+                              ),
+                              // *** Visited Toggle Of Single Card ***
+                              // ? The long-press equivalent, made visible.
+                              IconButton(
+                                onPressed: () => _toggleSeen(context),
+                                style: ButtonStyle(
+                                    backgroundColor: WidgetStatePropertyAll(
+                                        data.alreadySeen
+                                            ? const Color.fromARGB(
+                                                40, 190, 130, 255)
+                                            : const Color.fromARGB(
+                                                20, 190, 130, 255))),
+                                icon: Icon(
+                                  data.alreadySeen
+                                      ? Icons.check_circle
+                                      : Icons.check_circle_outline,
+                                  size: 32,
+                                  color: data.alreadySeen
+                                      ? Colors.purpleAccent
+                                      : Colors.white54,
+                                ),
+                              ),
                               // *** Quick Share Of Single Card ***
                               IconButton(
                                 onPressed: () async {
@@ -278,11 +314,10 @@ class LocationCard extends StatelessWidget {
     if (data.alreadySeen) {
       model.addData(data); // ? Seen cards go to the end
     } else {
-      // ? Back in, at the right position for its distance
+      // ? Back in, at the position a sort would give it
       int insertAt = model.length();
       for (int i = 0; i < model.length(); i++) {
-        if (model.elem(i).alreadySeen ||
-            data.distance < model.elem(i).distance) {
+        if (compareCards(data, model.elem(i)) < 0) {
           insertAt = i;
           break;
         }
@@ -294,7 +329,27 @@ class LocationCard extends StatelessWidget {
 
   void _delete(BuildContext context) {
     ListModel model = Provider.of<ListModel>(context, listen: false);
+    int index = model.indexOf(data);
+    if (index < 0) return;
+    // ? Resolved before the removal: this widget is disposed with the card it
+    // ? renders, so afterwards there is no messenger left to look up.
+    ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     model.removeData(data);
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text('Deleted "${data.title}"'),
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            // ? Puts back the same instance, so distance and alreadySeen come
+            // ? with it and no GPS fix is needed to restore the order.
+            model.insertData(data, index.clamp(0, model.length()));
+            _persist(model);
+          },
+        ),
+      ));
     _persist(model);
   }
 
@@ -306,9 +361,20 @@ class LocationCard extends StatelessWidget {
   }
 
   Future<void> navigateTo(double lat, double lng) async {
-    var uri = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    Uri intentUri = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
+    try {
+      if (await canLaunchUrl(intentUri) && await launchUrl(intentUri)) return;
+    } catch (e) {
+      debugPrint('Navigation intent failed: $e');
+    }
+    // ? Without this, no Maps app meant the tap did nothing at all. The web URL
+    // ? also gives the unfinished iOS and desktop targets a working path.
+    Uri webUri = Uri.parse(
+        "https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving");
+    try {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Navigation fallback failed: $e');
     }
   }
 }

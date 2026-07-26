@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:japan_travel/screens/home.dart';
 import 'package:provider/provider.dart';
 import 'package:japan_travel/models/models.dart';
@@ -32,7 +34,27 @@ class AddFormState extends State<AddForm> {
   final addressText = TextEditingController();
   final imageUrlText = TextEditingController();
   final latLngText = TextEditingController();
-  final ratingText = TextEditingController();
+  double _rating = 4.0;
+  bool _locating = false;
+
+  // ? Typing coordinates by hand was the only way to add a place you are standing
+  // ? in front of.
+  Future<void> _fillCurrentLocation() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _locating = true);
+    final (LocationFixResult result, Position? position) =
+        await currentPosition();
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(locationProblemText(result))),
+      );
+      return;
+    }
+    latLngText.text =
+        LocationModel(position.latitude, position.longitude).toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,20 +82,20 @@ class AddFormState extends State<AddForm> {
                 },
                 controller: titleText,
               ),
+              // ? Description, address and image URL are optional: tryFromJson
+              // ? already defaults all three for imported cards, so requiring
+              // ? them only made hand-entry stricter than sharing.
               TextFormField(
                 minLines: 1,
                 maxLines: 10,
                 keyboardType: TextInputType.multiline,
                 decoration: const InputDecoration(
-                  labelText: "Description",
+                  labelText: "Description (optional)",
                   hintText: "Enter the description",
                   icon: Icon(Icons.description),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (value.length > maxDescriptionLength) {
+                  if (value != null && value.length > maxDescriptionLength) {
                     return 'Description must be less than $maxDescriptionLength characters';
                   }
                   return null;
@@ -82,15 +104,12 @@ class AddFormState extends State<AddForm> {
               ),
               TextFormField(
                 decoration: const InputDecoration(
-                  labelText: "Address",
+                  labelText: "Address (optional)",
                   hintText: "Enter the address",
                   icon: Icon(Icons.location_on),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (value.length > maxAddressLength) {
+                  if (value != null && value.length > maxAddressLength) {
                     return 'Address must be less than $maxAddressLength characters';
                   }
                   return null;
@@ -99,14 +118,12 @@ class AddFormState extends State<AddForm> {
               ),
               TextFormField(
                 decoration: const InputDecoration(
-                  labelText: "Image URL",
-                  hintText: "Enter the image URL",
+                  labelText: "Image URL (optional)",
+                  hintText: "Leave empty for a placeholder",
                   icon: Icon(Icons.image),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
+                  if (value == null || value.isEmpty) return null;
                   if (!Uri.parse(value).isAbsolute) {
                     return 'Please enter a valid URL';
                   }
@@ -115,41 +132,60 @@ class AddFormState extends State<AddForm> {
                 controller: imageUrlText,
               ),
               TextFormField(
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Latitude & Longitude",
-                  hintText: "Enter value as (lat, lng) in decimal notation",
-                  icon: Icon(Icons.gps_fixed),
+                  hintText: "(lat, lng) or a Google Maps link",
+                  icon: const Icon(Icons.gps_fixed),
+                  suffixIcon: _locating
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : IconButton(
+                          tooltip: 'Use my current location',
+                          onPressed: _fillCurrentLocation,
+                          icon: const Icon(Icons.my_location),
+                        ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter some text';
                   }
-                  if (LocationModel.tryFromLatLngString(value) == null) {
-                    return 'Please enter: (lat, lng) in decimal base notation';
+                  if (tryParseLocationInput(value) == null) {
+                    return 'Enter (lat, lng) or paste a Google Maps link';
                   }
                   return null;
                 },
                 controller: latLngText,
               ),
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Rating",
-                  hintText: "Enter the rating",
-                  icon: Icon(Icons.star),
+              // ? A slider rather than a free-text double: the old field accepted
+              // ? "4,5" and any out-of-range number until the validator caught it.
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Slider(
+                        value: _rating,
+                        min: 0.0,
+                        max: 5.0,
+                        divisions: 10,
+                        label: _rating.toStringAsFixed(1),
+                        onChanged: (double value) =>
+                            setState(() => _rating = value),
+                      ),
+                    ),
+                    SizedBox(
+                        width: 32,
+                        child: Text(_rating.toStringAsFixed(1),
+                            textAlign: TextAlign.right)),
+                  ],
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter some text';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a number';
-                  }
-                  if (double.parse(value) < 0 || double.parse(value) > 5) {
-                    return 'Must be between 0 and 5';
-                  }
-                  return null;
-                },
-                controller: ratingText,
               ),
             ],
           ),
@@ -171,14 +207,18 @@ class AddFormState extends State<AddForm> {
                     if (!context.mounted) return;
                     try {
                       Map<String, dynamic> loadedData = jsonDecode(fileContent);
-                      if (!loadedData.containsKey("data") ||
-                          loadedData["data"] is! List) {
-                        throw const FormatException('missing "data" list');
+                      if (!isImportable(loadedData)) {
+                        throw const FormatException(
+                            'neither a "data" nor a "features" list');
                       }
-                      List<DataModel> dataList = ListModel.fromJson(loadedData);
+                      final parsed = parseImport(loadedData);
                       ListModel model =
                           Provider.of<ListModel>(context, listen: false);
-                      model.loadData(dataList);
+                      ImportCounts counts = model.loadData(parsed.cards);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(counts
+                            .summary(parsed.offered - parsed.cards.length)),
+                      ));
                       SharedPreferences prefs =
                           await SharedPreferences.getInstance();
                       if (!context.mounted) return;
@@ -226,11 +266,13 @@ class AddFormState extends State<AddForm> {
                           // ? Here we need to add the data to the dataList and update the UI
                           DataModel data = DataModel(
                             titleText.text,
-                            imageUrlText.text,
+                            imageUrlText.text.isEmpty
+                                ? urlTo404Page
+                                : imageUrlText.text,
                             addressText.text,
-                            LocationModel.tryFromLatLngString(latLngText.text)!,
+                            tryParseLocationInput(latLngText.text)!,
                             descriptionText.text,
-                            double.parse(ratingText.text),
+                            _rating,
                           );
                           Provider.of<ListModel>(context, listen: false)
                               .addData(data);

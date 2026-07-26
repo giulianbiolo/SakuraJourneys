@@ -18,20 +18,24 @@ void callbackDispatcher() {
   });
 }
 
+// ? statusBarIconBrightness is the Android key, statusBarBrightness the iOS one,
+// ? and they read inverted: both of these mean "light glyphs on a dark bar".
+const SystemUiOverlayStyle systemUiOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
+    systemStatusBarContrastEnforced: false);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations(
     [DeviceOrientation.portraitUp],
   );
 
-  SystemUiOverlayStyle systemUiOverlayStyle = const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarDividerColor: Colors.transparent,
-      systemNavigationBarContrastEnforced: false,
-      systemStatusBarContrastEnforced: false);
   SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
       overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
@@ -54,16 +58,23 @@ class SakuraJourneys extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Sakura Journeys',
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        scaffoldBackgroundColor: const Color.fromARGB(255, 17, 17, 25),
-        fontFamily: 'Roboto',
-        useMaterial3: true,
+    // ? MaterialApp re-issues an overlay style from theme.brightness on every
+    // ? build, and this theme is light, so the one-shot call in main() gets
+    // ? overwritten with dark status bar glyphs. RenderView re-reads this
+    // ? annotation after every build, which is what makes it stick.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemUiOverlayStyle,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Sakura Journeys',
+        theme: ThemeData(
+          primarySwatch: Colors.indigo,
+          scaffoldBackgroundColor: const Color.fromARGB(255, 17, 17, 25),
+          fontFamily: 'Roboto',
+          useMaterial3: true,
+        ),
+        home: const HomeScreen(),
       ),
-      home: const HomeScreen(),
     );
   }
 }
